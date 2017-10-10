@@ -1,0 +1,18 @@
+---
+title: "Overview"
+output: html_document
+---
+
+> The Bali sardine is the predominant species caught by the sardine fisheries of the Philippines and is an extremely important resource. The purpose of this application is to allow policy makers and fishery managers in the Philippines to explore the potential implications of different management strategies for the Bali sardine fishery.
+
+This application provides a simplified form of a management strategy evaluation (MSE) for the Bali sardine (*S. lemuru*) fishery. A bioeconomic model simulates the potential catch, revenue, and biomass implications of different management strategies given a user-defined representation of the current status of the fishery. 
+
+The application contains the following components (tabs):
+
+1. **Overview**
+2. **Catch History** - Description of the *S. lemuru* fishery and the recorded catch history
+3. **Fishery Model** - Bioeconomic model of the *S. lemuru* fishery. Model components are organized in the following sub-components:
+    + **Projections:** Timeseries plots of catch, revenue, and biomass resulting from the selected model parameters
+    + **Policy Differences:** Bar plots of the difference in catch, revenue, and biomass between a management policy that includes a closed season and one that does not
+    + **Results Summary:** A summary table of the overall results from the model projections
+4. **Methods** - Generate and download PDFs outlining the methods and results 

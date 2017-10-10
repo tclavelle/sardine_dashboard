@@ -1,0 +1,206 @@
+---
+title: "Methods"
+output: html_document
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r data}
+### Packages
+library(tidyverse)
+library(TropFishR)
+library(scales)
+
+source('sardine_app_functions.R')
+source('sardine_optim.R')
+
+# length frequency data
+length_df <- read_csv(file = 'data/s_lemuru_length_freq.csv') 
+# national catch data
+catch_df <- read_csv(file = 'data/phils_fishery_compiled.csv') %>% 
+  filter(CommName == 'Indian sardines (Tamban)')
+
+### Plot Theme
+sardine_theme <- theme_bw() +
+  theme(text = element_text(size = 10))
+
+### Life History Info
+vbK <- 1.29
+Linf <- 22.1
+t0 <- -0.08
+lwA <- 0.0078
+lwB <- 3.165
+M <- 1.786 # natural mortality estimated from TropFishR
+init_f <- 1 # final depletion assumption
+recruit_age <- 7
+
+length_at_age <- Linf * (1-exp(-(1/12)*(vbK*(c(1:48) - t0))))
+weight_at_age <- lwA * length_at_age ^ lwB
+
+# Select all data and estimate weight
+length_df <- length_df %>%
+  filter(area == 'combined') %>%
+  dplyr::select(length, freq) %>%
+  mutate(weight = lwA * length ^ lwB)
+
+```
+
+## Overview
+The simulation tool provided in this application is an age-structured bioeconomic model of the Bali sardine fishery in the Philippines. The Bali sardine, *S. lemuru*, is a small pelagic species of forage fish, which are notoriously difficult to model due to the heavy influence of environmental factors. Additionally, the *S. lemuru* fishery is data-poor, further complicating assessment and modeling. As a result, this simulation tool relies on numerous important assumptions that, where appropriate, can be modified by the user. These assumptions, and the methods used to represent the response of *S. lemuru* population and fishery are outlined below and include the following main components:
+
+1. **Estimate Biological & Fishery Parameters** - Estimate key biological and fishery parameters (natural mortality, growth, selectivity) from literature and available data
+2. **Set Final Depletion** - User specifies the current biological status ($\frac{B}{B_0}$) of the sardine fishery
+3. **Construct Biological Model** - Build an age-structured biological model to represent the *S. lemuru* fishery
+4. **Estimate Recruitment & Stock-Recruit Relationship** - Initial recruitment ($R_0$), a Beverton-Holt stock-recruit relationship, and a parameter of environmental variability are then estimated such that they best explain the catch history and final depletion level specified in step 1
+5. **Project population** - The population is projected forward from the specified final depletion level using the previously estimated stock-recruit relationship and additional fishery charactersitics (mesh size, fishing mortality rate, length of closed season, etc.) specified by the user
+
+## Step 1: Estimate Biological & Fishery Parameters
+The first step of the analysis is to determine several important biological and stock-level parameters for *S. lemuru*, including the allometric length-weight relationship, natural mortality ($M$), selectivity, the average weight of an individual in the catch ($\bar{w}$), and the number of individuals in the catch ($n$). 
+
+### Growth
+Growth of *S. lemuru* is modeled using the Von Bertalanffy growth parameters from Setyohadi *et al.* (2010). 
+
++ $K = 1.29$
++ $L_{\infty} = 22.1 cm$
++ $t_0 = -0.08$
+
+Length-at-age is then estimated according to the Von Bertalanffy growth equation as follows:
+
+$$L_a = 22.1 (1-e^{-1.29(a + 0.08)})  $$
+The above equation represents annual growth and is subsequently modified to reflect monthly growth of *S. lemuru*
+
+$$ L_a = 22.1 (1-e^{\frac{1}{12}(-1.29(a + 0.08))})  $$
+
+### Natural Mortality
+```{r, echo=FALSE}
+# estimation of M
+Ms <- M_empirical(Linf = Linf, K_l = vbK, method = "Then_growth")
+
+# M estimates from previous studies
+M_ests <- data_frame(Z = c(4.48,6.33),
+                     M = c(1,2.29),
+                     `F` = c(3.38,4.03),
+                     Location = rep('Selat Bali', times = 2),
+                     Study = c("Merta, 1992", "Setyohadi, 2010"))
+```
+
+Natural mortality ($M$) for *S. lemuru* is estimated from the $L_{\infty}$ and von Bertalanffy $K$ parameters using the formula from a recent meta-analysis of 201 fish species (Then *et al.* 2015). The resulting $M$ estimate for *S. lemuru* in NZP is 1.786. This natural mortality rate is considerable but in accordance with $M$ estimates for *S. lemuru* in Indonesia, where previous studies estimated a range of $M$ values from 1.00-2.63 (Table 1).
+
+```{r, echo=FALSE, results='asis'}
+knitr::kable(M_ests,
+      caption = 'Table 1: Previous estimates of total mortality (Z), natural mortality (M), and fishing mortality (F) for Bali sardine fishery in Indonesia')
+```
+
+For simulating the *S. lemuru* fishery, $M$ is converted to a discrete monthly natural mortality rate of `r (1-exp(Ms[1]))/12` according to the equation $\frac{1-e^-M}{12}$.
+
+### Catch Weight and Number
+
+Length frequency data for *S. lemuru* was recorded from June-August for fishing area 4 and from August-October for fishing area 6 off Zamboanga del Norte (Figure 1.) 
+
+```{r, fig.align='center', fig.height=4, fig.width=5, fig.cap='Figure 1: Bali sardine fishing grounds off Zamboanga del Norte'}
+knitr::include_graphics(path = 'www/sardine_grounds.png')
+```
+
+The combined length-frequency data is presented in Figure 2. The data shows a length-at-recruitment of 11.75 cm and a length-at-first capture of 14.25 cm (Figure 1).The average size-at-first maturity for *S. lemuru* in the NZP is 12.5 cm (red line) and the highest fecundity recorded was at 13.8 cm (green line).  
+
+```{r hist1, fig.align='center', fig.cap='Figure 2. Length-frequency for Bali sardine caught by the Municiapl gillnet fleet in fishing areas 4 and 6 off Zamboanga del Norte. The red dotted line represent average length at first maturity and the green dotted line is the length of highest recorded fecundity'}
+length_df %>%
+  ggplot(aes(x = length, y = freq)) +
+  geom_bar(stat = 'identity', position = 'dodge') +
+  geom_vline(xintercept = 12.5, linetype = 2, color = 'red') +
+  geom_vline(xintercept = 13.8, linetype = 2, color = 'green') +
+  labs(x = 'Length (cm)',
+       y = 'Frequency') +
+  sardine_theme
+```
+
+```{r}
+# Final years catch value
+init_f_weight <- catch_df$Catch[nrow(catch_df)]
+
+# Calculate average sardine weight from the length-frequency data and the age-length relationship
+avg_weight <- length_df %>%
+  mutate(total_wt = freq * weight) %>%
+  summarize(avg_weight = sum(total_wt, na.rm = T) / sum(freq, na.rm = T)) %>% {.$avg_weight}
+
+# Calculate total individuals by dividing catch (first convert to grams) by average weight
+init_f_num <- (init_f_weight * 1e6) / avg_weight
+```
+
+Using the length-frequency data and the general allometric length-weight equation, the average weight ($\bar{w}$) of an individual in the data is estimated as follows:  
+
+$$ \bar{w} = \sum\limits_{9.97}^l \frac{w_l}{n_l} $$
+
+The total number of individuals in the catch ($N$) is then estimated by dividing the total catch weight ($W$) in the most recent year by ($\bar{w}$). 
+
+$$ N = \frac{W}{\bar{w}} $$
+
+### Selectivity
+
+Selectivity for the Philippine *S. lemuru* drift gillnet fishery come from Setyohadi *et al.* (2013), who estimated the selectivity of drift gillnets to *S. lemuru* in Indonesia. This study evaluated two gillnet mesh sizes, 2.54 cm and 3.175 cm, which are the same sizes used by the *S. lemuru* fishery in the Philippines. Setyohadi *et al.* (2013) found the gear selection factor ($S$) of the gillnet to the catch of *S. lemuru* to be 5.89, and the optimum length ($L_{opt}$) of *S. lemuru* to the 2.54 cm and 3.175 cm gillnets to be 14.96 cm and 18.7 cm, respectively. The standard deviation of both selection curves was 1.747 cm. Given the two $L_{opt}$ values $L_{opt,A}, L_{opt,B}$ and the shared standard deviation ($sd$), the probability of capture ($P$) at a given length ($L$) was calculated for each mesh size as follows:
+
+$$P_A = exp(-\frac{(L - L_A)^2}{2sd^2})$$
+\n
+$$P_B = exp(-\frac{(L - L_B)^2}{2sd^2})$$
+
+```{r, fig.cap='Figure 3. Selectivity curves for S. lemuru caught by drift gillnets with 2.54 and 3.175 cm mesh sizes'}
+# Probability of selection function
+gill_sel <- function(l,lopt){exp(-(l-lopt)^2/(2*1.747^2))}
+# Length class vector
+length_class <- as.numeric(unique(length_df$length))
+# Selectivity of 2.54cm mesh
+selA <- sapply(length_class, gill_sel, lopt = 14.96)
+# Selectivity of 3.175cm mesh
+selB <- sapply(length_class, gill_sel, lopt = 18.7)
+# Plot selectivity curves
+sel_df <- data_frame(length = rep(length_class, times = 2),
+           mesh   = rep(c('2.54','3.175'), each = length(length_class)),
+           sel    = c(selA,selB))
+
+sel_df %>%
+  ggplot(aes(x = length, y = sel, color = mesh)) +
+  geom_line() +
+  scale_y_continuous(labels = percent) +
+  labs(y = 'Probability of capture',
+       x = 'Length (midpoint, cm)',
+       color = 'Mesh size\n(cm)') +
+  sardine_theme
+```
+
+
+## Step 2: Set Final Depletion
+
+The *S. lemuru* fishery in the Philippines is data-poor and no reliable estimates of stock status currently exist, nor does sufficient publicly available data to conduct such an analysis. As a result, this model operates by first requiring the user to specify an educated guess at the current level of depletion ($B/K$). This assumption allows estimation of the remaining parameters required to simulate the *S. lemuru* fishery and provides flexibility to the tool by allowing users to explore the implications of management decisions across a range of potential depletion levels. By default, current depletion is initially set to 0.5.
+
+## Step 3: Construct Biological Model
+
+## Step 4: Estimate Recruitment and Stock-Recruit Relationship
+
+The next step is to estimate recruitment parameters, including virgin spawning-stock biomass ($SSB_0$), initial recruitment ($R_0$), a Beverton-Holt stock-recruitment relationship, and an environmental variability parameter. 
+
+### Recruitment Parameters
+Recruitment parameters are estimated using an optimization routine that searches over possible $R_0$ values and performs the following steps:
+
+1. Estimate virgin spawning-stock biomass ($SSB_0$) by projecting the population out to equilibrium under constant recruitment (of $R_0$ individuals) and in the absence of fishing
+
+2. Calculate parameters of the Beverton-Holt stock-recruitment relationship as follows given $R_0$, $SSB_0$, and an assumed steepness ($h$) of 0.8 
+
+$$ \alpha = \frac{B_0}{R_0} * \frac{(1-h)}{(4h)}  $$
+$$ \beta = \frac{5h-1}{4hR_0} $$
+
+3. Starting from $SSB_0$, simulate the fishery for the 13 years of available landings data
+
+4. Calculate depletion 
+
+The optimization searches for the $R_0$ that minimizes the difference between the simulated final depletion and the final depletion specified by the user.
+
+### Environmental Variability Parameter
+The *S. lemuru* fishery exhibits a high degree of intra annual variability, with catch peaking during the southwest monsoon (March-June) each year. This variability is believed to be heavily driven by environmental factors, such as sea surface temperature (SST) and Cholorophyll-A, associated with the El Nino Southern Oscillation (ENSO). In order to partially capture this environmental variability, the Southern Oscillation Index is incorporated into the optimization routine as follows,
+
+$$ R_t = R * xe^{SOI} $$
+where $R_t$ is actual recruitment at time $t$, $R$ is recruitment at time $t$ according to the stock-recruit relationship, $x$ is a constant, and $e^{SOI}$ is the exponentiated SOI value at time $t$. The optimization estimates the value of the constant $x$, which serves as a recruitment scalar. For future simulations, a SOI value is randomly sampled (with replacement) from the SOI timeseries. 
+ 
+## Step 5: Project Population
+The last step of the model is to simulate the sardine fishery forward in time from the estimated current status using the stock-recruit relationship from the optimization and the fishery parameters specied by the user (fishing mortality rate, duration of closed season, gillnet mesh size). 

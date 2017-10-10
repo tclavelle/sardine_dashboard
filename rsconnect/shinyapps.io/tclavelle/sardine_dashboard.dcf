@@ -1,0 +1,12 @@
+name: sardine_dashboard
+title: sardine_dashboard
+username:
+account: tclavelle
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 220999
+bundleId: 1006212
+url: https://tclavelle.shinyapps.io/sardine_dashboard/
+when: 1506908767.87819
+asMultiple: FALSE
+asStatic: FALSE

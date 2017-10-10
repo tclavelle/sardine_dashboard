@@ -1,0 +1,9 @@
+---
+title: "sardine_fishery"
+output: html_document
+---
+
+*S. lemuru* is targeted by both commercial and municipal fishers using a diverse array of fishing gears. Commercial fishers target *S. lemuru* using bag net and ring net fishing gears while the municipal fleet primarily utilizes a variety of gillnet methods (encircling gillnet, drift gillnet, beach-set gillnet). 
+
+National statistics on landings of *S. lemuru* (known *tamban tuloy*) show that the majority (~75%) of catch is landed by commercial boats. The fishery exhibits a high degree of intra annual variability, with catch peaking during the southwest monsoon (March-June) each year. This variability is believed to be heavily driven by environmental factors, such as sea surface temperature (SST) and Cholorophyll-A, associated with the El Nino Southern Oscillation (ENSO). Starting in 2012, the Bureau of Fisheries and Aquatic Resources (BFAR) implemented a three-month fishing closure (highlighted in red in the above figure) in the Zamboanga Peninsula. The fishery closure corresponds with the peak spawning months for *S. lemuru*. 
+
