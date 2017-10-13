@@ -285,7 +285,7 @@ sardine_optim <- function(r0 = 1e10,
     
     # If there's a fishery
     if(catch[i] > 0){
-      
+      # browser()
       # Calculate F from catch on mature fish
       f <- catch[i] / sum(m_out[i+1,] * weight_at_age / 1e6) 
       
@@ -311,7 +311,13 @@ sardine_optim <- function(r0 = 1e10,
  # Calculate final depletion
  final_depletion <- b_final / ssb0 
  
-  return(list(abundance = n_out, biomass = b_out, catch = c_out, final_depletion = final_depletion, ssb = b_final))
+  return(list(abundance = n_out, 
+              biomass = b_out, 
+              catch = c_out, 
+              final_depletion = final_depletion, 
+              ssb = b_final,
+              f_timeseries = data_frame(year = c(1:sim_length),
+                                        f    = f)))
 }
 
 

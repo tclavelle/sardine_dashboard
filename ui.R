@@ -10,9 +10,11 @@ dashboardPage(
       menuItem("The Fishery", tabName = "fishery", icon = icon("ship")),
       menuItem('Parameters', tabName = 'parameters', icon = icon('cog')),
       menuItem("Fishery Model", tabName = "model", icon = icon("area-chart")),
+      menuItem("Diagnostics", tabName = 'diagnostics', icon = icon('dashboard')),
       menuItem("Methods", tabName = "methods", icon = icon("list"))
     )
   ),
+  
   dashboardBody(
     tabItems(
       # Overview
@@ -125,6 +127,15 @@ dashboardPage(
                                        tableOutput('biomass_table'))
                        )
                 )
+              )),
+      
+      # Diagnostics
+      tabItem(tabName = 'diagnostics',
+              fluidRow(
+                box(title = 'Fishing Mortality', solidHeader = TRUE, status = 'warning',
+                    width = 6),
+                box(title = 'Mean Length', solidHeader = TRUE, status = 'warning',
+                    width = 6)
               )),
       
       # Methods

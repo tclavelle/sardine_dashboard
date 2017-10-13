@@ -60,6 +60,7 @@ shinyServer(function(input, output) {
                  catch = catch_history,
                  soi = exp(soi_monthly$SOI))
     
+    # Base simulation
     base_sim <- sardine_sim(init_f_num = init_f_num,
                             r0 = OUT$par[1], 
                             m = input$mortality,
