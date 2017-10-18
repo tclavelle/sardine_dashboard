@@ -134,11 +134,19 @@ dashboardPage(
               fluidRow(
                 box(title = 'Optimized Parameters', solidHeader = TRUE, status = 'warning',
                     width = 6,
+                    collapsible = TRUE,
                     tableOutput('opt_param_table')),
                 box(title = 'Equilibrium Biomass', solidHeader = TRUE, status = 'warning',
                     width = 6,
+                    collapsible = TRUE,
                     dygraphOutput('biomass'))
+              ),
+              fluidRow(
+                box(title = 'Historical Biomass', solidHeader = TRUE, status = 'warning',
+                    width = 6,
+                    collapsible = TRUE)
               )),
+      
       
       # Methods
       tabItem(tabName = "methods",

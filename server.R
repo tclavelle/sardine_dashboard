@@ -43,7 +43,6 @@ shinyServer(function(input, output) {
     return(closed)
   }) 
   
-  
   # Run Model Function ------------------------------------------------------
   run_model <- reactive({
     
@@ -68,14 +67,14 @@ shinyServer(function(input, output) {
     
     # Set B0 to sum of spawning stock biomass in numbers ()
     B0 <- sum(base_sim[[6]], na.rm = T)
-    # Pull out SSB in MT
-    # ssb0 <- base_sim[[5]]
     ssb0 <- B0
     
     # Arbitrary value of R0
     R0 <-  OUT$par[1]
+    
     # Assume steepness of 0.8
     h  <- 0.8
+    
     # Beverton-Holt parameters
     alpha_bh		<-	(B0 / R0) * (1-h)/(4*h)
     beta_bh		<-	(5*h-1)/(4*h*R0)
@@ -135,11 +134,12 @@ shinyServer(function(input, output) {
     # Run optimization to find population parameters
     pop_params <- run_model()
     
+    # Pull out optimized parameters to use in simulations
     r0 <- pop_params[['r0']]
     alpha <- pop_params[['alpha_bh']]
     beta <- pop_params[['beta_bh']]
     soi_param <- pop_params[['soi_param']] # soi variability parameter
-    # browser()
+    
     # Adjust SOI by the optimized parameter
     soi_project <- soi_react() * soi_param
     
@@ -227,7 +227,7 @@ shinyServer(function(input, output) {
     return(opt_params)
   })
   
-  # Summary results table
+  # Summary results tables
   catch_results_summary <- reactive({
     # browser()
     # Catch
@@ -253,7 +253,6 @@ shinyServer(function(input, output) {
     
     return(sim_out_catch)
   })
-  
   revenue_results_summary <- reactive({
     
     # Revenue
@@ -279,7 +278,6 @@ shinyServer(function(input, output) {
     
     return(sim_out_revenue)
   })
-  
   biomass_results_summary <- reactive({
     # Biomass
     sim_out_biomass <- run_sim()[[2]] %>%
@@ -309,12 +307,10 @@ shinyServer(function(input, output) {
     # Run summary function
     catch_results_summary()
   })
-  
   output$revenue_table <- renderTable({
     # Run summary function
     revenue_results_summary()
   })
-  
   output$biomass_table <- renderTable({
     # Run summary function
     biomass_results_summary()
@@ -439,32 +435,6 @@ shinyServer(function(input, output) {
     dy_revenue
   })  
   
-  ## Projected difference in revenue   
-  output$revenue_difference <- renderPlot({
-    
-    sim_out_summary <- run_sim()[[3]] %>%
-      tbl_df() %>%
-      group_by(month) %>%
-      summarize(`Revenue` = sum(revenue, na.rm = T))
-    
-    sim_out_summary_no_closed <- run_sim_no_closed()[[3]] %>%
-      tbl_df() %>%
-      group_by(month) %>%
-      summarize(`Revenue (no closed season)` = sum(revenue, na.rm = T))
-    
-    sim_out_summary <- sim_out_summary %>%
-      left_join(sim_out_summary_no_closed) %>%
-      mutate(Difference = Revenue - `Revenue (no closed season)`,
-             Sign = ifelse(Difference >= 0, 'pos','neg')) %>%
-      select(month, Difference, Sign)
-    
-    ggplot(sim_out_summary, aes(x = month, y = Difference, fill = Sign)) +
-      geom_bar(stat = 'identity') +
-      scale_fill_manual(values = c('pos' = '#228B22', 'neg' = '#FF0000')) +
-      guides(fill = F) +
-      theme_bw()
-  }) 
-  
   ## Projected Biomass  
   output$sim_biomass <- renderDygraph({
     
@@ -501,32 +471,6 @@ shinyServer(function(input, output) {
     }
     # print plot
     dy_bio
-  })
-  
-  ## Projected difference in biomass   
-  output$biomass_difference <- renderPlot({
-    
-    sim_out_summary <- run_sim()[[2]] %>%
-      tbl_df() %>%
-      group_by(month) %>%
-      summarize(`Biomass` = sum(biomass, na.rm = T) / 1000)
-    
-    sim_out_summary_no_closed <- run_sim_no_closed()[[2]] %>%
-      tbl_df() %>%
-      group_by(month) %>%
-      summarize(`Biomass (no closed season)` = sum(biomass, na.rm = T) / 1000)
-    
-    sim_out_summary <- sim_out_summary %>%
-      left_join(sim_out_summary_no_closed) %>%
-      mutate(Difference = Biomass - `Biomass (no closed season)`,
-             Sign = ifelse(Difference >= 0, 'pos','neg')) %>%
-      select(month, Difference, Sign)
-    
-    ggplot(sim_out_summary, aes(x = month, y = Difference, fill = Sign)) +
-      geom_bar(stat = 'identity') +
-      scale_fill_manual(values = c('pos' = '#228B22', 'neg' = '#FF0000')) +
-      guides(fill = F) +
-      theme_bw()
   })
   
   # Methods & Downloads -------------------------------------------------

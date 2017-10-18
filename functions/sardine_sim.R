@@ -4,7 +4,8 @@
 ## Date: 2017-10-16
 #######################################################################################
 
-sardine_sim <- function(r0 = 4e10, 
+sardine_sim <- function(init_num = 1e4,
+                        r0 = 4e10, 
                         m = 1.786,
                         vbk = 1.29,
                         t0 = -0.08,
@@ -56,15 +57,16 @@ sardine_sim <- function(r0 = 4e10,
   b_out <- n_out # biomass data frame
   m_out <- n_out # mature biomass data frame
   c_out <- n_out # catch data frame
+  
   # F timeseries data frame
   f_out <- data_frame(month = c(1:sim_length),
                       f     = rep.int(0, times = sim_length))
   
   ## Set initial conditions
-  n_out[1,recruit_age] <- r0
+  n_out[1,] <- init_num
   b_out[1,] <- n_out[1,] * weight_at_age / 1e6 # divide by 1e6 to put convert biomass from grams to metric tons
   m_out[1,] <- n_out[1,] * maturity * sex_ratio # multiply number of individual times percent mature
-  # browser()
+  
   ## Set harvest regime for whole timeseries
   adult_harvest   <- rep(1- exp(-1/12 * f),nrow(n_out))
   # Set F in closed season to 0
@@ -74,21 +76,14 @@ sardine_sim <- function(r0 = 4e10,
   p_surv <- exp(- (1 / 12 * (m)))
   p_surv	<- rep(p_surv,nrow(n_out)) 
   
-  ### Recruitment settings
-  # Function for turning CV on the log-normal scale into standard deviations you can plug into R functions 
-  log_norm_cv		<- function(cv){
-    sigma2	<-	 log(cv^2 + 1)
-    return(sqrt(sigma2))
-  }
-  
   # Set recruitment months
   recruit_months <- seq(from = recruit_month, to = sim_length, by = 12)
   
   # Section: Simulate fishery through time in monthly timesteps
   #######################################################################################				
   for(i in 1:(sim_length)){
-    ## Recruitment
     
+    ## Recruitment
     # constant recruitment
     if(recruit_type == 'constant') { 
       if(i %in% recruit_months) {
@@ -106,7 +101,7 @@ sardine_sim <- function(r0 = 4e10,
                                                        sum(m_out[i,recruit_age:ncol(m_out)], na.rm = T)) * recruit_var[i] * soi_project[i]
       } else n_out[i+1,recruit_age] <- 0
     }
-    # browser()
+    
     # Survive to next year	
     n_out[(i+1),(recruit_age + 1):ncol(n_out)]	<- 	n_out[i, recruit_age:c(ncol(n_out)-1)] * p_surv[i]
     n_out[(i+1),ncol(n_out)]		<-	n_out[i,(ncol(n_out)-1)] * p_surv[i] + n_out[i,ncol(n_out)] * p_surv[i]
@@ -119,13 +114,14 @@ sardine_sim <- function(r0 = 4e10,
     
     # If there's a fishery
     if(adult_harvest[i+1] > 0){
-      # browser()
+      
       # Determine Harvest Rate
       tot_harvest 	<-	 adult_harvest[i+1] * sum(m_out[i+1,])
       # Fishery Happens on Mature Fish
       effect_harvest_rate		<- tot_harvest/sum(m_out[i+1,] * select)
       
       if(f_mode == 'rate') { c_out[i+1,] <- effect_harvest_rate * m_out[i+1,] * select }
+      
       if(f_mode == 'catch') { 
         # Use catch history data
         c_out[i+1,] <- f[i] * select * weight_at_age 
