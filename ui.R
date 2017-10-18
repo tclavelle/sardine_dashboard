@@ -132,10 +132,12 @@ dashboardPage(
       # Diagnostics
       tabItem(tabName = 'diagnostics',
               fluidRow(
-                box(title = 'Fishing Mortality', solidHeader = TRUE, status = 'warning',
-                    width = 6),
-                box(title = 'Mean Length', solidHeader = TRUE, status = 'warning',
-                    width = 6)
+                box(title = 'Optimized Parameters', solidHeader = TRUE, status = 'warning',
+                    width = 6,
+                    tableOutput('opt_param_table')),
+                box(title = 'Equilibrium Biomass', solidHeader = TRUE, status = 'warning',
+                    width = 6,
+                    dygraphOutput('biomass'))
               )),
       
       # Methods

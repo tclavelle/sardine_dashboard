@@ -20,8 +20,7 @@ library(R.utils)
 library(rsoi)
 
 ### Source Functions
-source('sardine_app_functions.R')
-source('sardine_optim.R')
+sourceDirectory(path = 'functions')
 
 ### Data
 length_df <- read_csv(file = 'data/s_lemuru_length_freq.csv') # length frequency data

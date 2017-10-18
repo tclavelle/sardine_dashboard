@@ -16,9 +16,6 @@ shinyServer(function(input, output) {
   M <- 1.786 # natural mortality (1.786)
   set.seed(100)
   
-  # length_at_age <- Linf * (1-exp(-(1/12)*(vbK*(c(1:48) - t0))))
-  # weight_at_age <- lwA * length_at_age ^ lwB
-  
   # Catch History Plot ------------------------------------------------------
   
   output$catch_hist <- renderDygraph({
@@ -55,14 +52,13 @@ shinyServer(function(input, output) {
                  depletion_NLL, 
                  method = 'L-BFGS-B',
                  lower = c(1e2, 0),
-                 upper = c(1e18, 2),
+                 upper = c(1e23, 2),
                  depletion = input$depletion,
                  catch = catch_history,
                  soi = exp(soi_monthly$SOI))
     
     # Base simulation
-    base_sim <- sardine_sim(init_f_num = init_f_num,
-                            r0 = OUT$par[1], 
+    base_sim <- sardine_sim(r0 = OUT$par[1], 
                             m = input$mortality,
                             linf = input$linf,
                             vbk = input$vbK,
@@ -70,23 +66,39 @@ shinyServer(function(input, output) {
                             recruit_month = input$recruit_month, 
                             recruit_type = 'constant')
     
-    # Pull out SSB in MT
-    ssb0 <- base_sim[[5]]
-    
-    # Set B0 to sum of spawning stock biomass in numbers
+    # Set B0 to sum of spawning stock biomass in numbers ()
     B0 <- sum(base_sim[[6]], na.rm = T)
+    # Pull out SSB in MT
+    # ssb0 <- base_sim[[5]]
+    ssb0 <- B0
+    
     # Arbitrary value of R0
     R0 <-  OUT$par[1]
     # Assume steepness of 0.8
     h  <- 0.8
     # Beverton-Holt parameters
     alpha_bh		<-	(B0 / R0) * (1-h)/(4*h)
-    beta_bh		<-	(5*h-1)/(4*h*R0)		
+    beta_bh		<-	(5*h-1)/(4*h*R0)
     
+    # Adjust SOI by SOI parameter value
+    soi_for_opt <- exp(soi_monthly$SOI) * OUT$par[2]
+    
+    # Simulation with catch history
+    fishing_sim <- sardine_optim(ssb0 = ssb0,
+                                 r0 = R0,
+                                 catch = catch_history, 
+                                 soi = soi_for_opt, 
+                                 recruit_month = 1, 
+                                 alpha_bh = alpha_bh, 
+                                 beta_bh = beta_bh, 
+                                 recruit_type = 'bev_holt')
+    # browser()
     return(list(r0 = OUT$par[1],
                 alpha_bh = alpha_bh,
                 beta_bh = beta_bh,
                 base = base_sim,
+                ssb0 = ssb0,
+                history = fishing_sim,
                 soi_param = OUT$par[2]))
   })
   
@@ -123,16 +135,15 @@ shinyServer(function(input, output) {
     # Run optimization to find population parameters
     pop_params <- run_model()
     
-    r0 <- pop_params[[1]]
-    alpha <- pop_params[[2]]
-    beta <- pop_params[[3]]
+    r0 <- pop_params[['r0']]
+    alpha <- pop_params[['alpha_bh']]
+    beta <- pop_params[['beta_bh']]
     soi_param <- pop_params[['soi_param']] # soi variability parameter
     # browser()
     # Adjust SOI by the optimized parameter
     soi_project <- soi_react() * soi_param
     
     results <- sardine_sim(m = input$mortality,
-                           init_f_number = init_f_num,
                            r0 = r0,
                            vbk = input$vbK,
                            linf = input$linf,
@@ -157,15 +168,15 @@ shinyServer(function(input, output) {
     # Run optimization to find population parameters
     pop_params <- run_model()
     
-    r0 <- pop_params[[1]]
-    alpha <- pop_params[[2]]
-    beta <- pop_params[[3]]
+    r0 <- pop_params[['r0']]
+    alpha <- pop_params[['alpha_bh']]
+    beta <- pop_params[['beta_bh']]
     soi_param <- pop_params[['soi_param']] # soi variability parameter
+  
     # Adjust SOI by the optimized parameter
     soi_project <- soi_react() * soi_param
     
     results <- sardine_sim(m = input$mortality,
-                           init_f_number = init_f_num,
                            r0 = r0,
                            vbk = input$vbK,
                            linf = input$linf,
@@ -197,6 +208,23 @@ shinyServer(function(input, output) {
                                    input$linf,
                                    input$depletion,
                                    input$recruit_month))
+  })
+  
+  # Optimized parameter table
+  output$opt_param_table <- renderTable({
+    # Run model
+    pop_params <- run_model()
+    
+    # Make table
+    opt_params <- data_frame(Parameter = c('Virgin SSB',
+                                           'Initial recruitment',
+                                           'Alpha', 
+                                           'Beta'),
+                             value = c(pop_params[['ssb0']],
+                                       pop_params[['r0']],
+                                       pop_params[['alpha_bh']],
+                                       pop_params[['beta_bh']]))
+    return(opt_params)
   })
   
   # Summary results table
@@ -277,14 +305,6 @@ shinyServer(function(input, output) {
     return(sim_out_biomass)
   })
     
-    # sim_out_summary <- sim_out_catch %>%
-    #   bind_rows(sim_out_revenue) %>%
-    #   bind_rows(sim_out_biomass) 
-    # bind_rows(sim_out_no_closed_revenue) %>%
-    # bind_rows(sim_out_biomass) %>%
-    # bind_rows(sim_out_no_closed_biomass) %>%
-    # select(Policy, Metric, Value, SD)
-  
   output$catch_table <- renderTable({
     # Run summary function
     catch_results_summary()
