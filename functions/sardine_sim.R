@@ -31,7 +31,7 @@ sardine_sim <- function(init_num = 1e4,
   # generate length and weight at age vectors for number of ages
   length_at_age <- linf * (1-exp(-(vbk/12)*(ages - t0)))
   weight_at_age <- lwA * length_at_age ^ lwB
-  # browser()
+  
   # generate maturity vector
   mat_ramp <- seq(0,1, length.out = length(age_mat)+1) # assume proportion mature is linear between ages
   maturity <- c(rep(0, times = age_mat[1]-1), # zero mature before length at first mature (11.5 cm) 
@@ -68,7 +68,7 @@ sardine_sim <- function(init_num = 1e4,
   m_out[1,] <- n_out[1,] * maturity * sex_ratio # multiply number of individual times percent mature
   
   ## Set harvest regime for whole timeseries
-  adult_harvest   <- rep(1- exp(-1/12 * f),nrow(n_out))
+  adult_harvest   <- rep(1 - exp(-1/12 * f),nrow(n_out))
   # Set F in closed season to 0
   adult_harvest[closed] <- 0
   
@@ -83,17 +83,16 @@ sardine_sim <- function(init_num = 1e4,
   #######################################################################################				
   for(i in 1:(sim_length)){
     
-    ## Recruitment
-    # constant recruitment
+    # Constant recruitment
     if(recruit_type == 'constant') { 
       if(i %in% recruit_months) {
-        n_out[i+1,recruit_age] <- r0 
-      } else n_out[i+1,recruit_age] <- 0 
+        n_out[i+1,recruit_age] <- r0 # constant recruitment of R0 in recruitment months
+      } else n_out[i+1,recruit_age] <- 0 # otherwise zero recruitment
     }
+    
     # Beverton-Holt 
     if(recruit_type == 'bev_holt') {
-      # browser()
-      # if(i == 19) {browser()}
+
       if(i %in% recruit_months) {
         
         n_out[i+1,recruit_age]	<-	sex_ratio * bev_holt(alpha_bh,
@@ -107,10 +106,10 @@ sardine_sim <- function(init_num = 1e4,
     n_out[(i+1),ncol(n_out)]		<-	n_out[i,(ncol(n_out)-1)] * p_surv[i] + n_out[i,ncol(n_out)] * p_surv[i]
     
     # Calculate Biomass
-    b_out[i+1,]	<-	(weight_at_age * n_out[i+1,]) / 1e6 # divide by 1e6 to convert grams to metric tons
+    b_out[i+1,]	<-	weight_at_age * n_out[i+1,] / 1e6 # divide by 1e6 to convert grams to metric tons
     
     # Mature individuals 
-    m_out[i+1,] <- n_out[i+1,] * maturity
+    m_out[i+1,] <- n_out[i+1,] * maturity * sex_ratio
     
     # If there's a fishery
     if(adult_harvest[i+1] > 0){
@@ -133,7 +132,7 @@ sardine_sim <- function(init_num = 1e4,
       m_out[i+1,] <- m_out[i+1,] - c_out[i+1,]
       
       # Calibrate total biomass
-      b_out[i+1,]		<- b_out[i+1,] - c_out[i+1,] * weight_at_age / 1e6
+      b_out[i+1,]		<- b_out[i+1,] - (c_out[i+1,] * weight_at_age / 1e6)
       
       # Calibrate N_individuals
       # n_out[i+1,]		<-	b_out[i+1,] * 1e6 / weight_at_age
@@ -176,5 +175,5 @@ sardine_sim <- function(init_num = 1e4,
     gather(key = 'age_class', value = 'catch', 3:ncol(.)) %>%
     mutate(revenue = catch * price)
   
-  return(list(n_out, b_out, c_out, m_out, K, K_num, f_out))
+  return(list(n_out = n_out, b_out = b_out, c_out = c_out, m_out = m_out, K = K, K_num = K_num, f_out = f_out))
 } 

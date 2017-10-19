@@ -83,7 +83,7 @@ dashboardPage(
                            
                            # Recruitment variability
                            selectInput('recruit_vary', 'Set degree of recruitment variability:', 
-                                       choices = c('Low' = 0.5, 'Medium' = 1, 'High' = 2),
+                                       choices = c('Low' = 0.75, 'Medium' = 1, 'High' = 1.25),
                                        selected = 1),
                            
                            # Fishing mortality for simulation
@@ -132,19 +132,20 @@ dashboardPage(
       # Diagnostics
       tabItem(tabName = 'diagnostics',
               fluidRow(
-                box(title = 'Optimized Parameters', solidHeader = TRUE, status = 'warning',
+                box(title = 'Historical Biomass', solidHeader = TRUE, status = 'warning',
                     width = 6,
                     collapsible = TRUE,
-                    tableOutput('opt_param_table')),
+                    dygraphOutput('hist_biomass')),
                 box(title = 'Equilibrium Biomass', solidHeader = TRUE, status = 'warning',
                     width = 6,
                     collapsible = TRUE,
                     dygraphOutput('biomass'))
               ),
               fluidRow(
-                box(title = 'Historical Biomass', solidHeader = TRUE, status = 'warning',
+                box(title = 'Optimized Parameters', solidHeader = TRUE, status = 'warning',
                     width = 6,
-                    collapsible = TRUE)
+                    collapsible = TRUE,
+                    tableOutput('opt_param_table'))
               )),
       
       

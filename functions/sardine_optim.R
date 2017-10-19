@@ -23,7 +23,7 @@ sardine_optim <- function(r0 = 1e10,
                           recruit_type = 'bev_holt',
                           alpha_bh,
                           beta_bh) {
-  # browser()
+  
   # generate length and weight at age vectors for number of ages
   length_at_age <- linf * (1-exp(-(vbk/12)*(ages - t0)))
   weight_at_age <- lwA * length_at_age ^ lwB
@@ -88,10 +88,10 @@ sardine_optim <- function(r0 = 1e10,
     n_out[(i+1),ncol(n_out)]		<-	n_out[ i,(ncol(n_out)-1)]*p_surv + n_out[ i,ncol(n_out)]*p_surv
     
     # Calculate Biomass
-    b_out[i+1,]	<-	(weight_at_age * n_out[i+1,]) / 1e6 # divide by 1e6 to convert grams to metric tons
+    b_out[i+1,]	<-	weight_at_age * n_out[i+1,] / 1e6 # divide by 1e6 to convert grams to metric tons
     
     # Mature individuals 
-    m_out[i+1,] <- n_out[i+1,] * maturity * 0.5
+    m_out[i+1,] <- n_out[i+1,] * maturity * sex_ratio
     
     # If there's a fishery
     if(catch[i] > 0){

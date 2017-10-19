@@ -47,11 +47,11 @@ shinyServer(function(input, output) {
   run_model <- reactive({
     
     # Run optimization to find initial recruitment 
-    OUT <- optim(c(1e6, 1), 
+    OUT <- optim(c(1e4, 1), 
                  depletion_NLL, 
                  method = 'L-BFGS-B',
                  lower = c(1e2, 0),
-                 upper = c(1e23, 2),
+                 upper = c(1e10, 2),
                  depletion = input$depletion,
                  catch = catch_history,
                  soi = exp(soi_monthly$SOI))
@@ -69,7 +69,7 @@ shinyServer(function(input, output) {
     B0 <- sum(base_sim[[6]], na.rm = T)
     ssb0 <- B0
     
-    # Arbitrary value of R0
+    # Optimized value of R0
     R0 <-  OUT$par[1]
     
     # Assume steepness of 0.8
@@ -108,25 +108,31 @@ shinyServer(function(input, output) {
     
     # Make rnorm function repeatable
     recruit_rnorm <- repeatable(rnorm)
-    
     # Set recruitment variability (may need to make this its own isolated function for Shiny)
     rec_var	<-	lapply(input$sim_length, FUN = recruit_rnorm, sd = as.numeric(input$recruit_vary)) %>%
       unlist()
     rec_var <- exp(rec_var)
     return(rec_var)
-  })
+    
+    })
   
   ### SOI parameter for projection
   soi_react <- reactive({
-    
+    # Calculate mean and SD of SOI timeseries
+    soi_mean <- mean(soi$SOI, na.rm = T)
+    soi_sd <- sd(soi$SOI, na.rm = T)
     # Make sample repeatable
-    soi_sample <- repeatable(sample)
+    # soi_sample <- repeatable(sample)
+    soi_rnorm <- repeatable(rnorm)
     # Sample, with replacement, soi values for duration of projection
-    soi_project <- soi_sample(x = soi$SOI, size = input$sim_length, replace = TRUE)
+    # soi_project <- soi_sample(x = soi$SOI, size = input$sim_length, replace = TRUE)
+    soi_project	<-	lapply(input$sim_length, FUN = soi_rnorm, mean = soi_mean, sd = soi_sd) %>%
+      unlist()
     # Exponentiate values to convert negatives to decimals
     soi_project <- exp(soi_project)
     return(soi_project)
-  })
+    
+    })
   
   # Run Simulation w/ Closed Season -------------------------------------------------
   run_sim <- reactive({
@@ -160,7 +166,8 @@ shinyServer(function(input, output) {
                            sim_length = input$sim_length)
     
     return(results)
-  })
+  
+    })
   
   # Run Simulation w/ No Closed Season Function -------------------------------------------------
   run_sim_no_closed <- reactive({
@@ -172,7 +179,7 @@ shinyServer(function(input, output) {
     alpha <- pop_params[['alpha_bh']]
     beta <- pop_params[['beta_bh']]
     soi_param <- pop_params[['soi_param']] # soi variability parameter
-  
+
     # Adjust SOI by the optimized parameter
     soi_project <- soi_react() * soi_param
     
@@ -192,12 +199,14 @@ shinyServer(function(input, output) {
                            sim_length = input$sim_length)
     
     return(results)
-  })
+  
+    })
   
   # Result Tables -------------------------------------------------
   
   # Biology Parameter Table
   output$params <- renderTable({
+    
     params <- data_frame(Parameter = c('Natural mortality',
                                        'von Bertalanffy K', 
                                        'L infinity',
@@ -208,10 +217,12 @@ shinyServer(function(input, output) {
                                    input$linf,
                                    input$depletion,
                                    input$recruit_month))
-  })
+  
+    })
   
   # Optimized parameter table
   output$opt_param_table <- renderTable({
+    
     # Run model
     pop_params <- run_model()
     
@@ -225,11 +236,12 @@ shinyServer(function(input, output) {
                                        pop_params[['alpha_bh']],
                                        pop_params[['beta_bh']]))
     return(opt_params)
-  })
+  
+    })
   
   # Summary results tables
   catch_results_summary <- reactive({
-    # browser()
+    
     # Catch
     sim_out_catch <- run_sim()[[3]] %>%
       tbl_df() %>%
@@ -252,7 +264,10 @@ shinyServer(function(input, output) {
       mutate(Difference = `Closed Season` - `No Closed Season`)
     
     return(sim_out_catch)
-  })
+  
+    })
+  
+  
   revenue_results_summary <- reactive({
     
     # Revenue
@@ -278,11 +293,13 @@ shinyServer(function(input, output) {
     
     return(sim_out_revenue)
   })
+  
   biomass_results_summary <- reactive({
     # Biomass
     sim_out_biomass <- run_sim()[[2]] %>%
       tbl_df() %>%
       group_by(year) %>%
+      filter(month == max(month, na.rm = T)) %>%
       summarize(Value = sum(biomass, na.rm = T) / 1000) %>%
       mutate(Metric = 'Biomass (1000s MT)',
              Policy = 'Closed Season') %>%
@@ -291,6 +308,7 @@ shinyServer(function(input, output) {
     sim_out_no_closed_biomass <- run_sim_no_closed()[[2]] %>%
       tbl_df() %>%
       group_by(year) %>%
+      filter(month == max(month, na.rm = T)) %>%
       summarize(Value = sum(biomass, na.rm = T) / 1000) %>%
       mutate(Metric = 'Biomass (1000s MT)',
              Policy = 'No Closed Season') %>%
@@ -302,7 +320,7 @@ shinyServer(function(input, output) {
     
     return(sim_out_biomass)
   })
-    
+  
   output$catch_table <- renderTable({
     # Run summary function
     catch_results_summary()
@@ -321,12 +339,33 @@ shinyServer(function(input, output) {
   ## Equilibrium Biomass
   output$biomass <- renderDygraph({
     
-    base <- run_model()[[4]]
+    base <- run_model()[['base']]
     
     model_out_summary <- base[[2]] %>%
       tbl_df() %>%
       group_by(month) %>%
       summarize(biomass   = sum(biomass, na.rm = T) / 1000)
+    
+    dygraph(model_out_summary) %>%
+      dyAxis('y', label = 'Biomass (1000s MT)') %>%
+      dyAxis('x', label = 'Month') %>%
+      dyOptions(colors = RColorBrewer::brewer.pal(2, "Dark2"))
+    
+  })
+  
+  ## Historical Biomass
+  output$hist_biomass <- renderDygraph({
+    
+    history <- run_model()[['history']]
+    
+    model_out_summary <- history[['b_out']] %>%
+      tbl_df() %>%
+      mutate(month = c(1:(64)),
+             year  = ceiling(rep_len(x = c(1:64 /12), length.out = 64))) %>%
+      select(month, year, everything()) %>%
+      gather(key = 'age_class', value = 'biomass', 3:ncol(.)) %>%
+      group_by(month) %>%
+      summarize(Biomass = sum(biomass, na.rm = T) / 1000)
     
     dygraph(model_out_summary) %>%
       dyAxis('y', label = 'Biomass (1000s MT)') %>%
