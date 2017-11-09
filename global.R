@@ -20,7 +20,7 @@ library(R.utils)
 library(rsoi)
 
 ### Source Functions
-sourceDirectory(path = 'functions')
+lapply(list.files(path = 'functions', full.names = T), function(x) source(x))
 
 ### Data
 length_df <- read_csv(file = 'data/s_lemuru_length_freq.csv') # length frequency data
@@ -39,8 +39,13 @@ t0 <- -lwA/lwB
 M <- 1.786
 price <- catch_annual$Price[nrow(catch_annual)]
 
-length_at_age <- Linf * (1-exp(-(vbK/12)*(c(1:48) - t0)))
+length_at_age <- Linf * (1-exp(-(1/12)*(vbK*(c(7:48) - t0))))
 weight_at_age <- lwA * length_at_age ^ lwB
+
+# generate maturity vector
+mat_ramp <- seq(0,1, length.out = 5) # assume proportion mature is linear between ages
+maturity <- c(mat_ramp[2:length(mat_ramp)], # maturity ramp
+              rep(1, times = length(length_at_age)-length(mat_ramp) + 1)) # all large fish are mature
 
 
 # Catch data processing for dygraph ---------------------------------------

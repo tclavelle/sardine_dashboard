@@ -13,8 +13,8 @@ library(tidyverse)
 library(TropFishR)
 library(scales)
 
-source('sardine_app_functions.R')
-source('sardine_optim.R')
+source('functions/sardine_app_functions.R')
+source('functions/sardine_optim.R')
 
 # length frequency data
 length_df <- read_csv(file = 'data/s_lemuru_length_freq.csv') 
@@ -116,6 +116,7 @@ length_df %>%
   sardine_theme
 ```
 
+
 ```{r}
 # Final years catch value
 init_f_weight <- catch_df$Catch[nrow(catch_df)]
@@ -138,7 +139,6 @@ The total number of individuals in the catch ($N$) is then estimated by dividing
 $$ N = \frac{W}{\bar{w}} $$
 
 ### Selectivity
-
 Selectivity for the Philippine *S. lemuru* drift gillnet fishery come from Setyohadi *et al.* (2013), who estimated the selectivity of drift gillnets to *S. lemuru* in Indonesia. This study evaluated two gillnet mesh sizes, 2.54 cm and 3.175 cm, which are the same sizes used by the *S. lemuru* fishery in the Philippines. Setyohadi *et al.* (2013) found the gear selection factor ($S$) of the gillnet to the catch of *S. lemuru* to be 5.89, and the optimum length ($L_{opt}$) of *S. lemuru* to the 2.54 cm and 3.175 cm gillnets to be 14.96 cm and 18.7 cm, respectively. The standard deviation of both selection curves was 1.747 cm. Given the two $L_{opt}$ values $L_{opt,A}, L_{opt,B}$ and the shared standard deviation ($sd$), the probability of capture ($P$) at a given length ($L$) was calculated for each mesh size as follows:
 
 $$P_A = exp(-\frac{(L - L_A)^2}{2sd^2})$$
@@ -169,6 +169,24 @@ sel_df %>%
   sardine_theme
 ```
 
+### Fishing Mortality
+Fishing mortality for *S. lemuru* is estimated using the mean length ($L_{Bar}$) method described in Ault *et al.* (2005), which requires the minimum, maximum, and average length reported in the catch, together with estimates of the Von Bertalanffy growth parameter K, natural mortality, and first length at full selectivity ($L_C$). 
+
+```{r}
+# Calculate LBar
+lBar <- length_df %>%
+  filter(length >= 14.75) %>%
+  mutate(total_lengths = length * freq) %>%
+  summarize(lbar = sum(total_lengths) / sum(freq)) %>% .$lbar
+
+# Total Mortality
+Z <- vbK * (Linf - lBar) / (lBar - 14.75)
+
+# Fishing Mortality
+f <- Z - M
+```
+
+Where $L_C = 14.75$, $L\infty = 22.1$, $M = 1.786$, and $\bar{L}=15.17$. The resulting estimate of total mortality ($Z = 21.35$) is excessively high and unreliable. 
 
 ## Step 2: Set Final Depletion
 

@@ -1,0 +1,77 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+
+```{r}
+# Source global script
+source('global.R')
+
+Linf <- 22.1
+r0 <- 1e8
+max_age <- 31
+recruit_month <- 1
+sim_length <- 100
+ages <- c(7:max_age)
+
+length_at_age <- Linf * (1-exp(-(1/12)*(vbK*(1:max_age - t0))))
+weight_at_age <- lwA * length_at_age ^ lwB
+
+# generate maturity vector
+mat_ramp <- seq(0,1, length.out = 5) # assume proportion mature is linear between ages
+maturity <- c(mat_ramp[2:length(mat_ramp)], # maturity ramp
+              rep(1, times = length(length_at_age)-length(mat_ramp) + 1)) # all large fish are mature
+
+```
+
+
+```{r}
+# calculate ssb0 from resulting r0
+virgin <- r0 * exp(- (1 / 12) * M * c(0:(max_age-1)))
+
+# Set recruitment months. Include max age of analysis
+recruit_months <- unique(c(seq(from = recruit_month, to = max_age, by = 12), max_age))
+
+# only include numbers alive in recruitment months
+virgin[!(c(1:(max_age)) %in% recruit_months)] <- 0
+
+# set initial pop to virgin
+initial_pop <- virgin
+
+# Calculate number mature and multiply times weight at age to get SSB0
+ssb0 <- virgin * maturity * weight_at_age
+
+# Only include numbers in recruitment 
+ssb0_wt <- sum(ssb0) 
+```
+
+```{r}
+sim1 <- sardine_sim_v3(initial_pop = initial_pop,
+               recruit_type = 'constant',
+               r0 = r0,
+               f = 0,
+               ages = c(1:max_age),
+               sim_length = sim_length,
+               length_at_age = length_at_age,
+               weight_at_age = weight_at_age,
+               maturity = maturity)
+
+ssb0 <- sim1[['m_out']] * weight_at_age
+ssb0_wt <- max(rowSums(numbers))
+```
+
+
+```{r}
+sim_plot(sim_df = sim1[['m_out']], sim_length = sim_length, metric = 'Spawning Biomass')
+```
+
+```{r}
+depletion_plot(mature_df = sim1[['m_out']], weight_at_age = weight_at_age, 
+               sim_length = sim_length, spawning_bio = ssb0_wt)
+```
+

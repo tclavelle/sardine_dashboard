@@ -1,0 +1,135 @@
+---
+title: "Sardine Model Troubleshooting"
+output: html_notebook
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r data}
+### Packages
+library(tidyverse)
+library(scales)
+
+lapply(list.files(path = 'functions', full.names = T), function(x) source(x))
+
+# length frequency data
+length_df <- read_csv(file = 'data/s_lemuru_length_freq.csv') 
+# national catch data
+catch_df <- read_csv(file = 'data/phils_fishery_compiled.csv') %>% 
+  filter(CommName == 'Indian sardines (Tamban)')
+# national catch data
+catch_annual <- read_csv(file = 'data/phils_fishery_compiled.csv') %>% 
+  filter(CommName == 'Indian sardines (Tamban)')
+
+# Break apart catch history into months
+catch_history <- catch_annual %>% {.$Catch}
+catch_history <- rep(catch_history / 12, each = 12)
+
+# Price
+price <- catch_df$Price[nrow(catch_df)]
+
+### Life History Info
+vbK <- 1.29
+Linf <- 22.1
+t0 <- -0.08
+lwA <- 0.0078
+lwB <- 3.165
+M <- 1.786 # natural mortality estimated from TropFishR
+init_f <- 1 # final depletion assumption
+
+length_at_age <- Linf * (1-exp(-(1/12)*(vbK*(c(7:48) - t0))))
+weight_at_age <- lwA * length_at_age ^ lwB
+
+# Select all data and estimate weight
+length_df <- length_df %>%
+  filter(area == 'combined') %>%
+  dplyr::select(length, freq) %>%
+  mutate(weight = lwA * length ^ lwB)
+
+# generate maturity vector
+mat_ramp <- seq(0,1, length.out = 5) # assume proportion mature is linear between ages
+maturity <- c(mat_ramp[2:length(mat_ramp)], # maturity ramp
+              rep(1, times = length(length_at_age)-length(mat_ramp) + 1)) # all large fish are mature
+
+```
+
+
+```{r}
+# recruits <- (0.8 * r0s * fish$steepness * ssb) / (
+#             0.2 * ssb0s * (1 - fish$steepness) +
+#               (fish$steepness - 0.2) * ssb
+
+# !!! SSB0 is weight and R0 is numbers !!!
+```
+
+
+```{r}
+# Run optimization to find initial recruitment 
+OUT <- optimize( 
+             depletion_NLL_v2, 
+             # method = 'L-BFGS-B',
+             lower = c(1e6),
+             upper = c(1e8),
+             depletion = 0.5,
+             catch = catch_history,
+             length_at_age = length_at_age,
+             weight_at_age = weight_at_age,
+             maturity = maturity)
+
+# calculate ssb0 from resulting r0
+virgin <- OUT$minimum[1] * exp(- (1 / 12) * c(0:41))
+
+# Calculate number mature and multiply times weight at age to get SSB0
+ssb0 <- virgin * maturity * weight_at_age
+
+recruit_months <- seq(from = 1, to = 42, by = 12)
+
+# Only include numbers in recruitment 
+ssb0 <- sum(ssb0[recruit_months]) 
+
+# run base simulation
+base <- sardine_sim_v2(ssb0 = ssb0,
+                     r0 = OUT$minimum[1],
+                     length_at_age = length_at_age,
+                     weight_at_age = weight_at_age,
+                     maturity = maturity,
+                     recruit_type = 'constant')
+
+
+optim_test <- sardine_optim_v2(ssb0 = ssb0,
+                     r0 = OUT$minimum[1],
+                     length_at_age = length_at_age,
+                     weight_at_age = weight_at_age,
+                     maturity = maturity,
+                     catch = catch_history,
+                     recruit_type = 'bev_holt')
+
+opt_sim <- optim_test$abundance
+opt_sim <- opt_sim[nrow(opt_sim),]
+
+# Run simulation
+test <- sardine_sim_v2(ssb0 = ssb0, 
+                     r0 = OUT$minimum[1], # for simulation, set this to last month of abundance
+                     f = 1,
+                     length_at_age = length_at_age,
+                     weight_at_age = weight_at_age,
+                     maturity = maturity,
+                     recruit_type = 'bev_holt',
+                     f_mode = 'rate')
+
+test_sim <- test[['b_out']]
+```
+
+```{r}
+test_sim %>%
+  tbl_df() %>%
+  mutate(month = c(1:nrow(.))) %>%
+  gather(key = 'age', value = 'number', 1:c(ncol(.)-1)) %>%
+  group_by(month) %>%
+  summarize(total = sum(number, na.rm = T)) %>%
+  ggplot(aes(x = month, y = total)) +
+  geom_line()
+```
+

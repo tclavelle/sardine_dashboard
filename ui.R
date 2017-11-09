@@ -110,14 +110,6 @@ dashboardPage(
                               tabPanel("Results",
                                        tableOutput('catch_table'))
                        ),
-                       tabBox(title = 'Revenue', 
-                              width = NULL,
-                              tabPanel("Projections",
-                                       dygraphOutput('revenue', height = '250px')
-                              ),
-                              tabPanel("Results",
-                                       tableOutput('revenue_table'))
-                       ),
                        tabBox(title = 'Biomass', 
                               width = NULL,
                               tabPanel("Projections",
@@ -134,12 +126,12 @@ dashboardPage(
               fluidRow(
                 box(title = 'Historical Biomass', solidHeader = TRUE, status = 'warning',
                     width = 6,
-                    collapsible = TRUE,
-                    dygraphOutput('hist_biomass')),
+                    collapsible = TRUE),
+                    # dygraphOutput('hist_biomass')),
                 box(title = 'Equilibrium Biomass', solidHeader = TRUE, status = 'warning',
                     width = 6,
-                    collapsible = TRUE,
-                    dygraphOutput('biomass'))
+                    collapsible = TRUE)
+                    # dygraphOutput('biomass'))
               ),
               fluidRow(
                 box(title = 'Optimized Parameters', solidHeader = TRUE, status = 'warning',
