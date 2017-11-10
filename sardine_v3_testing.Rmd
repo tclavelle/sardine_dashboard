@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 source('global.R')
 
 Linf <- 22.1
-r0 <- 1e8
+r0 <- 1e12
 max_age <- 31
 recruit_month <- 1
 sim_length <- 100
@@ -51,7 +51,8 @@ ssb0_wt <- sum(ssb0)
 ```
 
 ```{r}
-sim1 <- sardine_sim_v3(initial_pop = initial_pop,
+# Run base simulation
+simBase <- sardine_sim_v3(initial_pop = initial_pop,
                recruit_type = 'constant',
                r0 = r0,
                f = 0,
@@ -61,17 +62,40 @@ sim1 <- sardine_sim_v3(initial_pop = initial_pop,
                weight_at_age = weight_at_age,
                maturity = maturity)
 
-ssb0 <- sim1[['m_out']] * weight_at_age
-ssb0_wt <- max(rowSums(numbers))
+# Update SSB
+sim_m_out <- simBase[['m_out']] * weight_at_age
+ssb0_wt <- max(rowSums(sim_m_out))
+ssb0 <- sim_m_out[which(rowSums(sim_m_out)==ssb0_wt),] / weight_at_age
 ```
 
 
 ```{r}
-sim_plot(sim_df = sim1[['m_out']], sim_length = sim_length, metric = 'Spawning Biomass')
+sim_plot(sim_df = simBase[['m_out']], sim_length = sim_length, metric = 'Spawning Biomass')
 ```
 
 ```{r}
-depletion_plot(mature_df = sim1[['m_out']], weight_at_age = weight_at_age, 
+depletion_plot(mature_df = simBase[['m_out']], weight_at_age = weight_at_age, 
                sim_length = sim_length, spawning_bio = ssb0_wt)
 ```
 
+```{r}
+simForward <- sardine_sim_v3(initial_pop = initial_pop,
+               recruit_type = 'bev_holt',
+               r0 = r0,
+               ssb0 = ssb0_wt,
+               f = 1,
+               ages = c(1:max_age),
+               sim_length = sim_length,
+               length_at_age = length_at_age,
+               weight_at_age = weight_at_age,
+               maturity = maturity)
+```
+
+```{r}
+sim_plot(sim_df = simForward[['c_out']], sim_length = sim_length, metric = 'Catch')
+```
+
+```{r}
+depletion_plot(mature_df = simForward[['m_out']], weight_at_age = weight_at_age, 
+               sim_length = sim_length, spawning_bio = ssb0_wt)
+```

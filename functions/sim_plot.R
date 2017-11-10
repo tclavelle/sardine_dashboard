@@ -36,7 +36,7 @@ depletion_plot <- function(mature_df, weight_at_age, sim_length, spawning_bio) {
     mutate(month = c(1:nrow(.)),
            year = ceiling(rep_len(x = c(1:sim_length / 12), length.out = sim_length + 1)),
            total = rowSums(.),
-           depletion = total / spawning_bio) %>%
+           depletion = 1 - total / spawning_bio) %>%
     select(month, year, total, depletion) %>%
     ggplot(aes(x = month, y = depletion)) +
     geom_line() +

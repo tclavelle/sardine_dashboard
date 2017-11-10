@@ -79,9 +79,8 @@ for(i in 1:sim_length){
     } else n_out[i+1,1] <- 0
   }
 
-# Catch in month i
-  # browser()
-c_out[i,] <- n_out[i,] * select * p_caught[i]
+# Catch (MT) in month i
+c_out[i,] <- n_out[i,] * select * p_caught[i] * weight_at_age / 1e6
   
   # Survive to next year	
 n_out[(i+1),2:ncol(n_out)]	<- 	n_out[i, 1:c(ncol(n_out)-1)] * p_surv[i]
