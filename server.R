@@ -50,8 +50,8 @@ shinyServer(function(input, output) {
     OUT <- optimize( 
       depletion_NLL_v2, 
       lower = c(1e6),
-      upper = c(1e8),
-      depletion = 0.5,
+      upper = c(1e30),
+      depletion = input$depletion,
       catch = catch_history,
       length_at_age = length_at_age,
       weight_at_age = weight_at_age,
@@ -64,12 +64,17 @@ shinyServer(function(input, output) {
     ssb0 <- virgin * maturity * weight_at_age
     
     recruit_months <- seq(from = 1, to = 42, by = 12)
+    all_months <- c(1:42)
     
     # Only include numbers in recruitment 
-    ssb0 <- sum(ssb0[recruit_months]) 
+    ssb0 <- sum(ssb0[recruit_months])
+    
+    # Set start population
+    virgin[!all_months %in% recruit_months] <- 0
     
     # Simulation with catch history
-    fishing_sim <- sardine_optim_v2(ssb0 = ssb0,
+    fishing_sim <- sardine_optim_v2(start_pop = virgin,
+                                    ssb0 = ssb0,
                                     r0 = OUT$minimum[1],
                                     length_at_age = length_at_age,
                                     weight_at_age = weight_at_age,
@@ -110,7 +115,8 @@ shinyServer(function(input, output) {
     # initial population is last month of historic
     start_pop <- historic[nrow(historic),]
     
-    results <- sardine_sim_v2(ssb0 = ssb0,
+    results <- sardine_sim_v2(start_pop = start_pop,
+                              ssb0 = ssb0,
                            m = input$mortality,
                            r0 = r0,
                            f = input$f_sim,
@@ -143,7 +149,8 @@ shinyServer(function(input, output) {
     # initial population is last month of historic
     start_pop <- historic[nrow(historic),]
     
-    results <- sardine_sim_v2(ssb0 = ssb0,
+    results <- sardine_sim_v2(start_pop = start_pop,
+                              ssb0 = ssb0,
                               m = input$mortality,
                               r0 = r0,
                               f = input$f_sim,

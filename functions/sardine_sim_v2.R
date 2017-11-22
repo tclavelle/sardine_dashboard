@@ -4,7 +4,8 @@
 ## Date: 2017-10-16
 #######################################################################################
 
-sardine_sim_v2 <- function(ssb0 = 6188691,
+sardine_sim_v2 <- function(start_pop,
+                           ssb0 = 6188691,
                          r0 = 1e5, 
                          m = 1.786,
                          f = 0,
@@ -47,7 +48,7 @@ sardine_sim_v2 <- function(ssb0 = 6188691,
                       f     = rep.int(0, times = sim_length))
   
   ## Set initial conditions
-  n_out[1,1:length(r0)] <- r0
+  n_out[1,1:length(start_pop)] <- start_pop
   b_out[1,] <- n_out[1,] * weight_at_age / 1e6 # divide by 1e6 to put convert biomass from grams to metric tons
   m_out[1,] <- n_out[1,] * maturity # multiply number of individual times percent mature
   
@@ -55,17 +56,20 @@ sardine_sim_v2 <- function(ssb0 = 6188691,
   adult_harvest   <- rep(1 - exp(-(1/12 * f)),nrow(n_out))
   # Set F in closed season to 0
   adult_harvest[closed] <- 0
-  
-  # Set percent survivors. This value represents total natural mortality per month. 
-  p_surv <- exp(- (1 / 12 * (m)))
-  p_surv	<- rep(p_surv,nrow(n_out)) 
-  
+
   # Set recruitment months
-  recruit_months <- seq(from = recruit_month, to = sim_length, by = 12)
-  # browser()
+  recruit_months <- seq(from = as.numeric(recruit_month) + 12, to = sim_length, by = 12)
+  
   # Section: Simulate fishery through time in monthly timesteps
   #######################################################################################				
-  for(i in 1:(sim_length)){
+  for(i in 1:sim_length){
+    
+    f <- adult_harvest[i]
+    
+    # Set percent survivors. This value represents total natural mortality per month. 
+    p_surv <- exp(- (1 / 12 * (m + f)))
+    p_caught <- 1 - exp(- (1 / 12 * (f)))
+    
     
     # Constant recruitment
     if(recruit_type == 'constant') { 
@@ -81,46 +85,23 @@ sardine_sim_v2 <- function(ssb0 = 6188691,
         
         ssb <- sum(m_out[i,] * weight_at_age)
         n_out[i+1,1]	<- (0.8 * r0 * 0.8 * ssb) / (0.2 * ssb0 * (1 - 0.8) + (0.8 - 0.2) * ssb)	
-          
+        
       } else n_out[i+1,1] <- 0
     }
     
+    # Catch (MT) in month i
+    c_out[i,] <- n_out[i,] * select * p_caught * weight_at_age / 1e6
+    
     # Survive to next year	
-    n_out[(i+1),2:ncol(n_out)]	<- 	n_out[i, 1:c(ncol(n_out)-1)] * p_surv[i]
-    n_out[(i+1),ncol(n_out)]		<-	n_out[i,(ncol(n_out)-1)] * p_surv[i] + n_out[i,ncol(n_out)] * p_surv[i]
+    n_out[(i+1),2:ncol(n_out)]	<- 	n_out[i, 1:c(ncol(n_out)-1)] * p_surv
+    n_out[(i+1),ncol(n_out)]		<-	n_out[i,(ncol(n_out)-1)] * p_surv + n_out[i,ncol(n_out)] * p_surv
     
     # Calculate Biomass
     b_out[i+1,]	<-	weight_at_age * n_out[i+1,] / 1e6 # divide by 1e6 to convert grams to metric tons
     
     # Mature individuals 
-    m_out[i+1,] <- n_out[i+1,] * maturity #* sex_ratio
+    m_out[i+1,] <- n_out[i+1,] * maturity 
     
-    # If there's a fishery
-    if(adult_harvest[i+1] > 0){
-      
-      # Determine Harvest Rate
-      tot_harvest 	<-	 adult_harvest[i+1] * sum(m_out[i+1,])
-      # Fishery Happens on Mature Fish
-      effect_harvest_rate		<- tot_harvest/sum(m_out[i+1,] * select)
-      
-      if(f_mode == 'rate') { c_out[i+1,] <- effect_harvest_rate * m_out[i+1,] * select }
-      
-      if(f_mode == 'catch') { 
-        # Use catch history data
-        c_out[i+1,] <- f[i] * select * weight_at_age 
-        # Calculate F and save timeseries
-        f_out[i,2] <- f[i] / b_out[i]
-      }
-      
-      # Calibrate Mature individuals
-      m_out[i+1,] <- m_out[i+1,] - c_out[i+1,]
-      
-      # Calibrate total biomass
-      b_out[i+1,]		<- b_out[i+1,] - (c_out[i+1,] * weight_at_age / 1e6)
-      
-      # Calibrate N_individuals
-      n_out[i+1,]		<-	b_out[i+1,] * 1e6 / weight_at_age
-    }
   } # close year loop
   
   # Initial pawning stock biomass (K)

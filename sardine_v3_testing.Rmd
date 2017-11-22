@@ -10,16 +10,24 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
 ```{r}
 # Source global script
-source('global.R')
-
-Linf <- 22.1
-r0 <- 1e12
+# source('global.R')
+source('functions/sardine_sim_v3.R')
+source('functions/sardine_app_functions.R')
+source('functions/sim_plot.R')
+vbK <- 1.29 # von Bert K
+Linf <- 22.1 # L infinity
+lwA <- 0.0078 # alpha from length-weight relationship
+lwB <- 3.165 # beta from length weight relationship
+t0 <- -lwA/lwB
+M <- 1.786
 max_age <- 31
 recruit_month <- 1
+recruit_age <- 7
 sim_length <- 100
 ages <- c(7:max_age)
+r0 <- 1e6
 
-length_at_age <- Linf * (1-exp(-(1/12)*(vbK*(1:max_age - t0))))
+length_at_age <- Linf * (1-exp(-(1/12)*(vbK*(7:max_age - t0))))
 weight_at_age <- lwA * length_at_age ^ lwB
 
 # generate maturity vector
@@ -32,22 +40,25 @@ maturity <- c(mat_ramp[2:length(mat_ramp)], # maturity ramp
 
 ```{r}
 # calculate ssb0 from resulting r0
-virgin <- r0 * exp(- (1 / 12) * M * c(0:(max_age-1)))
+virgin <- r0 * exp(- (1 / 12) * M * c(0:(max_age - recruit_age)))
 
-# Set recruitment months. Include max age of analysis
-recruit_months <- unique(c(seq(from = recruit_month, to = max_age, by = 12), max_age))
+# Set recruitment ages. Include max age of analysis
+recruit_ages <- unique(c(seq(from = recruit_month, to = max_age, by = 12)))
 
 # only include numbers alive in recruitment months
-virgin[!(c(1:(max_age)) %in% recruit_months)] <- 0
+virgin[!(c(1:(max_age - recruit_age + 1)) %in% recruit_ages)] <- 0
 
 # set initial pop to virgin
 initial_pop <- virgin
 
-# Calculate number mature and multiply times weight at age to get SSB0
-ssb0 <- virgin * maturity * weight_at_age
+# Set recruitment months
+recruit_months <- seq(from = recruit_month + 12, to = sim_length, by = 12)
 
-# Only include numbers in recruitment 
-ssb0_wt <- sum(ssb0) 
+# Calculate number mature and multiply times weight at age to get SSB0
+# ssb0 <- virgin * maturity * weight_at_age
+
+# Only include numbers in recruitment
+# ssb0_wt <- sum(ssb0)
 ```
 
 ```{r}
@@ -56,7 +67,7 @@ simBase <- sardine_sim_v3(initial_pop = initial_pop,
                recruit_type = 'constant',
                r0 = r0,
                f = 0,
-               ages = c(1:max_age),
+               ages = c(7:max_age),
                sim_length = sim_length,
                length_at_age = length_at_age,
                weight_at_age = weight_at_age,
@@ -64,38 +75,66 @@ simBase <- sardine_sim_v3(initial_pop = initial_pop,
 
 # Update SSB
 sim_m_out <- simBase[['m_out']] * weight_at_age
+sim_m_out <- sim_m_out[recruit_months,]
+
+# Take max of spawning stock biomass from base simulation
 ssb0_wt <- max(rowSums(sim_m_out))
 ssb0 <- sim_m_out[which(rowSums(sim_m_out)==ssb0_wt),] / weight_at_age
 ```
 
+## Equilibrium SSB and Depletion Plots
 
 ```{r}
 sim_plot(sim_df = simBase[['m_out']], sim_length = sim_length, metric = 'Spawning Biomass')
 ```
 
+
+## Find F that optimizes target depletion
+
 ```{r}
-depletion_plot(mature_df = simBase[['m_out']], weight_at_age = weight_at_age, 
-               sim_length = sim_length, spawning_bio = ssb0_wt)
+OUT <- optimize(depletion_v3,
+                lower = 0.01,
+                upper = 2,
+                target_depletion = 0.8,
+                r0 = r0, 
+                ssb0_wt = ssb0_wt, 
+                initial_pop = initial_pop, 
+                sim_length = sim_length,
+                weight_at_age = weight_at_age, 
+                length_at_age = length_at_age)
 ```
+ 
+# Forward Simulation
 
 ```{r}
 simForward <- sardine_sim_v3(initial_pop = initial_pop,
                recruit_type = 'bev_holt',
                r0 = r0,
                ssb0 = ssb0_wt,
-               f = 1,
-               ages = c(1:max_age),
+               f = 1.22,
+               ages = c(7:max_age),
                sim_length = sim_length,
                length_at_age = length_at_age,
                weight_at_age = weight_at_age,
                maturity = maturity)
 ```
 
+## Simulation Catch and Depletion Plots
+
 ```{r}
 sim_plot(sim_df = simForward[['c_out']], sim_length = sim_length, metric = 'Catch')
 ```
 
 ```{r}
-depletion_plot(mature_df = simForward[['m_out']], weight_at_age = weight_at_age, 
-               sim_length = sim_length, spawning_bio = ssb0_wt)
+base_dp <- simDepletion(mature_df = simBase[['m_out']], sim_name = 'equilibrium', weight_age = weight_at_age, 
+               sim_length = sim_length, ssb0 = ssb0_wt, recruit_months = recruit_months)
+
+forward_dp <- simDepletion(mature_df = simForward[['m_out']], sim_name = 'current F', weight_age = weight_at_age, 
+               sim_length = sim_length, ssb0 = ssb0_wt, recruit_months = recruit_months)
+
+sim_dp <- bind_rows(base_dp, forward_dp)
+
+depletion_plot(sim_dp)
 ```
+
+

@@ -90,7 +90,7 @@ n_out[(i+1),ncol(n_out)]		<-	n_out[i,(ncol(n_out)-1)] * p_surv[i] + n_out[i,ncol
 b_out[i+1,]	<-	weight_at_age * n_out[i+1,] / 1e6 # divide by 1e6 to convert grams to metric tons
 
 # Mature individuals 
-m_out[i+1,] <- n_out[i+1,] * maturity #* sex_ratio
+m_out[i+1,] <- n_out[i+1,] * maturity 
 
 } # close year loop
 

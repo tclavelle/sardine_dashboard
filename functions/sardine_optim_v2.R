@@ -4,7 +4,8 @@
 ## Date: 2017-10-16
 #######################################################################################
 
-sardine_optim_v2 <- function(r0 = 1e5,
+sardine_optim_v2 <- function(start_pop,
+                             r0 = 1e5,
                              ssb0 = 6188691, 
                              m = 1.786,
                              length_at_age,
@@ -39,7 +40,7 @@ sardine_optim_v2 <- function(r0 = 1e5,
   c_out <- n_out # catch data frame
   
   ## Set initial conditions
-  n_out[1,1:length(r0)] <- r0
+  n_out[1,1:length(start_pop)] <- start_pop
   b_out[1,] <- n_out[1,] * weight_at_age / 1e6 # divide by 1e6 to put convert biomass from grams to metric tons
   m_out[1,] <- n_out[1,] * maturity  # multiply number of individual times percent mature
   
@@ -49,6 +50,13 @@ sardine_optim_v2 <- function(r0 = 1e5,
   # Section: Simulate fishery through time in monthly timesteps
   #######################################################################################				
   for(i in 1:(sim_length)){
+    # browser()
+    # Calculate F given available biomass
+    f <- catch[i] / (sum(n_out[i,] * weight_at_age) / 1e6)
+    
+    # Set survival and catch rates
+    p_surv <- exp(- (1 / 12 * (m + f)))
+    p_caught <- 1 - exp(- (1 / 12 * (f)))
     
     ## Recruitment
     # constant recruitment
@@ -69,60 +77,25 @@ sardine_optim_v2 <- function(r0 = 1e5,
       } else n_out[i+1,1] <- 0
     }
     
-    # Calculate highest possible F given available biomass
-    # highest_f <- sum(n_out[i+1,] * select * weight_at_age) / sum(m_out[i,] * weight_at_age)
-    # catch_f <- catch[i] / (sum(m_out[i,] * weight_at_age) / 1e6)
-    # 
-    # if(catch_f > highest_f) { 
-    #   f <- highest_f
-    # } else f <- catch_f
-    
-    # Set survival
-    p_surv <- exp(- (1 / 12 * (m)))
-    
-    # assign catch
-    # c_out[i+1,] <- n_out[i+1,] * select * f
+    # Catch (MT) in month i
+    c_out[i,] <- n_out[i,] * select * p_caught * weight_at_age / 1e6
     
     # Survive to next year	
-    n_out[(i+1),2:ncol(n_out)]	<- 	n_out[i,1:c(ncol(n_out)-1)]*p_surv
-    n_out[(i+1),ncol(n_out)]		<-	n_out[ i,(ncol(n_out)-1)]*p_surv + n_out[ i,ncol(n_out)]*p_surv
+    n_out[(i+1),2:ncol(n_out)]	<- 	n_out[i, 1:c(ncol(n_out)-1)] * p_surv
+    n_out[(i+1),ncol(n_out)]		<-	n_out[i,(ncol(n_out)-1)] * p_surv + n_out[i,ncol(n_out)] * p_surv
     
     # Calculate Biomass
     b_out[i+1,]	<-	weight_at_age * n_out[i+1,] / 1e6 # divide by 1e6 to convert grams to metric tons
     
     # Mature individuals 
-    m_out[i+1,] <- n_out[i+1,] * maturity 
+    m_out[i+1,] <- n_out[i+1,] * maturity #* sex_ratio
     
-    # If there's a fishery
-    if(catch[i] > 0){
-
-      # Calculate F from catch on mature fish
-      f <- catch[i] / sum(m_out[i+1,] * weight_at_age / 1e6)
-
-      # What the catch would be given the calculated F
-      temp_catch <- f * n_out[i+1,] * select
-
-      # Where the catch would be larger than available biomass, set to available biomass
-      # temp_catch[temp_catch > m_out[i+1,]] <- m_out[i+1,][temp_catch > m_out[i+1,]]
-
-      # Fishery Happens on Mature Fish
-      c_out[i+1,] <- temp_catch
-
-      # Calibrate Mature individuals
-      m_out[i+1,] <- m_out[i+1,] - c_out[i+1,]
-
-      # Calibrate total biomass
-      b_out[i+1,]		<- b_out[i+1,] - (c_out[i+1,] * weight_at_age / 1e6)
-
-      # Calibrate N_individuals
-      n_out[i+1,]		<-	b_out[i+1,] * 1e6 / weight_at_age
-    }
   } # close year loop
   
   # Section: Add labels to result data frames
   #######################################################################################
   
-  b_final <- sum(m_out[nrow(m_out),] * weight_at_age, na.rm = T)
+  b_final <- sum(m_out[recruit_months[length(recruit_months)],] * weight_at_age, na.rm = T)
   
   # Calculate final depletion
   final_depletion <- b_final / ssb0 
