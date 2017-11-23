@@ -14,13 +14,6 @@ shinyServer(function(input, output) {
   source('../functions/depletion_v3.R')
   source('../functions/simDepletion.R')
  
-  lwA <- 0.0078 # alpha from length-weight relationship
-  lwB <- 3.165 # beta from length weight relationship
-  t0 <- -lwA/lwB
-  max_age <- 31
-  recruit_age <- 7
-  ages <- c(7:max_age)
-
   # Generate length and weight at age and maturity at age vectors given life history parameter settings
   length_weight <- reactive({ 
     # Length at age
@@ -40,12 +33,12 @@ shinyServer(function(input, output) {
   baseline <- reactive({
     # calculate ssb0 from resulting r0
     virgin <- input$r0 * exp(- (1 / 12) * input$mortality * c(0:(max_age - recruit_age)))
-    
+    # browser()
     # Set recruitment ages. Include max age of analysis
     recruit_ages <- unique(c(seq(from = input$recruit_month, to = max_age, by = 12)))
     
     # Set recruitment months
-    recruit_months <- seq(from = recruit_month + 12, to = input$sim_length, by = 12)
+    recruit_months <- seq(from = as.numeric(input$recruit_month) + 12, to = input$sim_length, by = 12)
     
     # only include numbers for recruitment ages (cohorts)
     virgin[!(c(1:(max_age - recruit_age + 1)) %in% recruit_ages)] <- 0
@@ -58,6 +51,18 @@ shinyServer(function(input, output) {
     
     return(list('initial_pop' = initial_pop, 'recruit_months' = recruit_months))
   })
+  
+  # Closed Season Function --------------------------------------------------
+  
+  # Reactive function to generate the closed season for displaying on the plot
+  closed_season <- reactive({
+    # generate vector of closed season months 
+    closed_period <- seq(from = input$season[1], to = input$season[2], by = 1)
+    closed <- sapply(closed_period, function(x) seq(from = x, to = input$sim_length, by = 12)) %>% 
+      unlist() %>%
+      sort()
+    return(closed)
+  }) 
 
   # Run base simulation
   baseModel <- reactive({
@@ -109,7 +114,9 @@ shinyServer(function(input, output) {
                     initial_pop = baseline()[['initial_pop']], 
                     sim_length = input$sim_length,
                     length_at_age = age_params[['length_age']],
-                    weight_at_age = age_params[['weight_age']])
+                    weight_at_age = age_params[['weight_age']],
+                    maturity = age_params[['maturity']],
+                    recruit_months = baseline[['recruit_months']])
     
     # Run simulation with optimized F to match depletion setting
     simA <- sardine_sim_v3(initial_pop = baseline()[['initial_pop']],
@@ -122,7 +129,7 @@ shinyServer(function(input, output) {
                               weight_at_age = age_params[['weight_age']],
                               maturity = age_params[['maturity']])
     
-    # Run simulation with F setting
+    # Run simulation with closed season
     simB <- sardine_sim_v3(initial_pop = baseline()[['initial_pop']],
                            recruit_type = 'bev_holt',
                            r0 = input$r0,
@@ -131,7 +138,8 @@ shinyServer(function(input, output) {
                            sim_length = input$sim_length,
                            length_at_age = age_params[['length_age']],
                            weight_at_age = age_params[['weight_age']],
-                           maturity = age_params[['maturity']])
+                           maturity = age_params[['maturity']],
+                           closed = closed_season())
     
     return(list('optF' = OUT$minimum, 'currentF' = simA, 'simF' = simB, 'ssb_wt' = ssb0_wt))
   })
@@ -154,10 +162,8 @@ shinyServer(function(input, output) {
     
     # Run baseline
     base <- baseModel()
-    
     # Run model
     sims <- runModel()
-    
     # Get length, weight, and maturity at age vectors
     age_params <- length_weight()
     
@@ -198,6 +204,61 @@ shinyServer(function(input, output) {
                 'catchPlot' = catch_plot, 'bioPlot' = bio_plot))
   })
   
+  simModelTables <- reactive({
+    
+    # Run baseline
+    base <- baseModel()
+    # Run model
+    sims <- runModel()
+    # Get length, weight, and maturity at age vectors
+    age_params <- length_weight()
+    
+    # Extract model runs
+    currentF <- sims[['currentF']]
+    simF <- sims[['simF']]
+    
+    # helper function to process matrices
+    goLong <- function(df1, df2, metric) {
+      df_out <- df1 %>%
+        tbl_df() %>%
+        mutate(month     = c(1:nrow(.)),
+               year      = ceiling(rep_len(x = c(1:input$sim_length / 12), length.out = input$sim_length + 1)),
+               total     = rowSums(.),
+               scenario  = 'sq') %>%
+        bind_rows(df2 %>%
+                    tbl_df() %>%
+                    mutate(month     = c(1:nrow(.)),
+                           year      = ceiling(rep_len(x = c(1:input$sim_length / 12), length.out = input$sim_length + 1)),
+                           total     = rowSums(.),
+                           scenario  = 'closed')) %>%
+        select(month, year, total, scenario) %>% 
+        spread(key = scenario , value = total) %>%
+        mutate(metric = metric)
+      return(df_out)
+    }
+    
+    # Procees data frames
+    catch_df <- goLong(df1 = currentF[['c_out']], df2 = simF[['c_out']], metric = 'Catch')
+    bio_df <- goLong(df1 = currentF[['b_out']], df2 = simF[['b_out']], metric = 'Biomass')
+    
+    # Summarize by year
+    catch_df <- catch_df %>%
+      group_by(year, metric) %>%
+      summarize(sq         = sum(sq, na.rm = T),
+                closed     = sum(closed, na.tm = T),
+                difference = round(100 * (closed - sq) / sq)) %>%
+      select(year, metric, difference)
+    
+    bio_df <- bio_df %>%
+      group_by(year, metric) %>%
+      summarize(sq         = sum(sq, na.rm = T),
+                closed     = sum(closed, na.tm = T),
+                difference = round(100 * (closed - sq) / sq)) %>%
+      select(year, metric, difference)
+    
+    return(list('catch_table' = catch_df, 'bio_table' = bio_df))
+  })
+  
   # Render plots
   output$base_run_ssb <- renderPlot({ baseModelPlots()[['ssb']] })
   output$base_run_catch <- renderPlot({ baseModelPlots()[['catch']] })
@@ -207,6 +268,10 @@ shinyServer(function(input, output) {
   
   output$sim_catch_plot <- renderPlot({ simModelPlots()[['catchPlot']] })
   output$sim_bio_plot <- renderPlot({ simModelPlots()[['bioPlot']] })
+  
+  # Render tables
+  output$sim_catch_table <- renderTable({ simModelTables()[['catch_table']]})
+  output$sim_bio_table <- renderTable({ simModelTables()[['bio_table']]})
   
   # Depletion value !! just for testing
   output$optF <- renderText(runModel()[['optF']])

@@ -47,12 +47,13 @@ n_out[1,] <- initial_pop
 b_out[1,] <- n_out[1,] * weight_at_age / 1e6 # divide by 1e6 to put convert biomass from grams to metric tons
 m_out[1,] <- n_out[1,] * maturity # multiply number of individual times percent mature
 
-# Set percent survivors. This value represents total natural mortality per month. 
-p_surv <- exp(- (1 / 12 * (m + f)))
-p_surv	<- rep(p_surv,nrow(n_out)) 
+# Set F timeseries for simulation
+f_series <- rep(f, times = sim_length)
+f_series[closed] <- 0
 
-p_caught <- 1 - exp(- (1 / 12 * (f)))
-p_caught <- rep(p_caught, nrow(n_out))
+# Set percent survivors and caught. This value represents total natural mortality per month. 
+p_surv <- exp(- (1 / 12 * (m + f_series)))
+p_caught <- 1 - exp(- (1 / 12 * (f_series)))
 
 # Set recruitment months
 recruit_months <- seq(from = recruit_month + 12, to = sim_length, by = 12)

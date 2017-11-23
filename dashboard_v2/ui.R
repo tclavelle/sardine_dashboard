@@ -23,7 +23,7 @@ dashboardPage(
                     width = 12,
                     includeMarkdown(path = 'sardine_overview.Rmd'))
               )
-      ),
+      ), 
       
       # The Fishery
       tabItem(tabName = "fishery",
@@ -35,7 +35,7 @@ dashboardPage(
                 box(title = 'Background', solidHeader = TRUE, status = 'primary',
                     width = 12,
                     includeMarkdown(path = 'sardine_fishery.Rmd'))
-              )
+              ) 
       ),
       
       # Population Parameters
@@ -74,76 +74,86 @@ dashboardPage(
                     
                     # Length of simulation
                     sliderInput('sim_length', label = 'Length of simulation (months):',
-                                min = 48, max = 120, value = 72))
-              )
+                                min = 48, max = 120, value = 72),
+                    
+                    # Fishing mortality for simulation
+                    sliderInput('f_sim', 'Set fishing mortality (F) for simulation:', min = 0, max = 4, step = 0.25, value = 1.75)
+                )
+              ) 
       ),
       
       # Simulation Model
       tabItem(tabName = "model",
               fluidRow(
-                box(solidHeader = TRUE, status = 'info',
-                    width = 4,
-                    # Fishing mortality for simulation
-                    sliderInput('f_sim', 'Set fishing mortality (F) for simulation:', min = 0, max = 4, step = 0.25, value = 1.75)
+                column(width = 3,
+                       box(solidHeader = TRUE, status = 'info',
+                           width = NA,
+                           # Mesh size
+                           selectInput('mesh_size', 'Select gillnet mesh size', choices = c('2.54 cm' = 'selA', '3.175 cm' = 'selB'), selected = 2.54)
+                       ) 
                 ),
                 
-                box(solidHeader = TRUE, status = 'info',
-                    width = 4,
-                    # Mesh size
-                    selectInput('mesh_size', 'Select gillnet mesh size', choices = c('2.54 cm' = 'selA', '3.175 cm' = 'selB'), selected = 2.54)
-                ),
-                    
-                box(solidHeader = TRUE, status = 'info',
-                    width = 4,
-                    # Closed season months
-                    sliderInput('season',
+                column(width = 3,
+                       box(solidHeader = TRUE, status = 'info',
+                           width = NA,
+                           # Closed season months
+                           sliderInput('season',
                                        label = 'Set closed season (months):',
                                        min = 1, max = 12, value = c(1,3))
                        )
+                ), 
+                
+                column(width = 3,
+                       valueBox(10, '% Change in Catch', width = NA, icon = icon('ship'))
                 ),
+                
+                column(width = 3, 
+                       valueBox(10, '% Change in Biomass', width = NA, icon = icon('globe'))
+                )
+              ),
               
               fluidRow(
                 tabBox(title = 'Catch', 
-                              width = NULL,
-                              # height = 250,
-                              tabPanel("Projections",
-                                       plotOutput('sim_catch_plot', height = '250px')),
-                              tabPanel("Results")
-                                       # tableOutput('catch_table'))
-                       ),
-                       tabBox(title = 'Biomass', 
-                              width = NULL,
-                              # height = 250,
-                              tabPanel("Projections",
-                                       plotOutput('sim_bio_plot', height = '250px')),
-                              tabPanel("Results",
-                                       textOutput('optF'))
-                                       
-                       ),
-                       tabBox(title = 'Depletion', 
-                              width = NULL,
-                              # height = 250,
-                              tabPanel("Projections",
-                                       plotOutput('sim_depletion', height = '250px')), 
-                              tabPanel("Results",
-                                       textOutput('sim_depletion_table'))
-                       )
+                       width = NULL,
+                       # height = 250,
+                       tabPanel("Projections",
+                                plotOutput('sim_catch_plot', height = '250px')),
+                       tabPanel("Results",
+                       tableOutput('sim_catch_table'))
+                ),
+                tabBox(title = 'Biomass', 
+                       width = NULL,
+                       # height = 250, 
+                       tabPanel("Projections",
+                                plotOutput('sim_bio_plot', height = '250px')),
+                       tabPanel("Results",
+                                tableOutput('sim_bio_table'))
+                       
+                ),
+                tabBox(title = 'Depletion', 
+                       width = NULL,
+                       # height = 250,
+                       tabPanel("Projections",
+                                plotOutput('sim_depletion', height = '250px')), 
+                       tabPanel("Results",
+                                textOutput('sim_depletion_table'))
                 )
-              ),
-    
+              )
+      ),
+      
       # Methods
       tabItem(tabName = "methods",
               fluidRow(
                 box(title = 'Methods', solidHeader = TRUE, status = 'primary',
                     width = 12,
                     includeMarkdown(path = 'sardine_methods_shiny.Rmd'))
-              ),
+              ), 
               fluidRow(
                 box(title = 'Download', solidHeader = TRUE, status = 'primary',
                     width = 6,
                     # Download reports column
                     downloadButton("methods", "Download Complete Methods"))
               ))
-    )
+    ) 
   )
 )

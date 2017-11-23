@@ -50,7 +50,7 @@ shinyServer(function(input, output) {
     OUT <- optimize( 
       depletion_NLL_v2, 
       lower = c(1e6),
-      upper = c(1e30),
+      upper = c(1e10),
       depletion = input$depletion,
       catch = catch_history,
       length_at_age = length_at_age,

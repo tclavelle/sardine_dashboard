@@ -5,7 +5,8 @@
 #######################################################################################
 
 depletion_v3 <- function(par_start, target_depletion, r0 = 1e6, ssb0_wt, initial_pop, 
-                         sim_length, weight_at_age, length_at_age) {
+                         sim_length, weight_at_age, length_at_age, maturity,
+                         recruit_months) {
   
   # Try forward simulation given F parameter 
   simForward <- sardine_sim_v3(initial_pop = initial_pop,
