@@ -69,12 +69,16 @@ dashboardPage(
                     
                     # Recruitment variability
                     selectInput('recruit_vary', 'Set degree of recruitment variability:', 
-                                choices = c('Low' = 0.75, 'Medium' = 1, 'High' = 1.25),
+                                choices = c('Low' = 0.1, 'Medium' = 0.25, 'High' = 0.5),
                                 selected = 1),
                     
                     # Length of simulation
                     sliderInput('sim_length', label = 'Length of simulation (months):',
                                 min = 48, max = 120, value = 72),
+                    
+                    # Number of simulations
+                    sliderInput('sim_number', label = 'Number of simulations to run:',
+                                min = 1, max = 1000, value = 100),
                     
                     # Fishing mortality for simulation
                     sliderInput('f_sim', 'Set fishing mortality (F) for simulation:', min = 0, max = 4, step = 0.25, value = 1.75)

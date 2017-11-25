@@ -18,6 +18,7 @@ sardine_sim_v3 <- function(initial_pop,
                            age_mat = c(1:4), # months over which fish attain maturity
                            recruit_month = 1,
                            sim_length = 100,
+                           sims = 100,
                            recruit_var = 1,
                            closed = NA) {
 
@@ -32,10 +33,23 @@ sardine_sim_v3 <- function(initial_pop,
   
   # Section: Initialize data frames for storing simulation results
 #######################################################################################
-# browser()
+
+# Initialize lists to store all simulation catch and biomass results
+  c_list <- list()
+  m_list <- list()
+  
+# loop over number of simulations
+  for(s in 1:sims){
+
+    if(is.null(dim(recruit_var))==FALSE) {
+      # Extract recruitment variability for simulation
+      recruit_vary <- recruit_var[s,]
+    } else recruit_vary <- recruit_var
+
+    
 ## Build data frames
 n_out <- matrix(0,ncol = length(ages), # extra column to track months in simulation
-                nrow = sim_length + 1) 
+                nrow = sim_length + 1)
 
 colnames(n_out) <- c(paste0(ages, '_month_olds')) # set column names
 b_out <- n_out # biomass data frame
@@ -58,6 +72,9 @@ p_caught <- 1 - exp(- (1 / 12 * (f_series)))
 # Set recruitment months
 recruit_months <- seq(from = recruit_month + 12, to = sim_length, by = 12)
 
+# Set recruitment variability
+# recruit_vary <- rlnorm(sim_length, log(1), as.numeric(recruit_var))
+
 # Section: Simulate fishery through time in monthly timesteps
 #######################################################################################				
 for(i in 1:sim_length){
@@ -75,7 +92,8 @@ for(i in 1:sim_length){
     if(i %in% recruit_months) {
       
       ssb <- sum(m_out[i,] * weight_at_age)
-      n_out[i+1,1]	<- (0.8 * r0 * 0.8 * ssb) / (0.2 * ssb0 * (1 - 0.8) + (0.8 - 0.2) * ssb)	
+      recruits <- (0.8 * r0 * 0.8 * ssb) / (0.2 * ssb0 * (1 - 0.8) + (0.8 - 0.2) * ssb)	
+      n_out[i+1,1] <- recruits * recruit_vary[i]
       
     } else n_out[i+1,1] <- 0
   }
@@ -94,6 +112,13 @@ b_out[i+1,]	<-	weight_at_age * n_out[i+1,] / 1e6 # divide by 1e6 to convert gram
 m_out[i+1,] <- n_out[i+1,] * maturity 
 
 } # close year loop
+
+# Store simulation results in results list
+c_list[[s]] <- c_out
+m_list[[s]] <- m_out
+
+} # close simulation loop
+# browser()
 
 return(list('n_out' = n_out, 'b_out' = b_out, 'm_out' = m_out, 'c_out' = c_out))
 }

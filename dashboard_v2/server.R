@@ -29,6 +29,8 @@ shinyServer(function(input, output) {
     return(list('length_age' = l_at_a, 'weight_age' = w_at_a, 'maturity' = mat_out))
     })
   
+# Baseline Population -----------------------------------------------------
+
   # Initial population settings given intital recruitment settings
   baseline <- reactive({
     # calculate ssb0 from resulting r0
@@ -52,6 +54,22 @@ shinyServer(function(input, output) {
     return(list('initial_pop' = initial_pop, 'recruit_months' = recruit_months))
   })
   
+  # Recruitment Variability -------------------------------------------------
+  
+  ### Generate recruitment variability
+  recruit_react <- reactive({
+    
+    # Make rnorm function repeatable
+    recruit_rnorm <- repeatable(rlnorm)
+    
+    # Create an array of recruitment timeseries for running a number of simulations
+    rec_var <- array(recruit_rnorm(input$sim_length, log(1), as.numeric(input$recruit_vary)),
+                       dim = c(input$sim_number, input$sim_length))
+
+    return(rec_var)
+    
+  })
+  
   # Closed Season Function --------------------------------------------------
   
   # Reactive function to generate the closed season for displaying on the plot
@@ -64,6 +82,8 @@ shinyServer(function(input, output) {
     return(closed)
   }) 
 
+# Base Simulation ---------------------------------------------------------
+  
   # Run base simulation
   baseModel <- reactive({
     
@@ -92,6 +112,9 @@ shinyServer(function(input, output) {
     return(list('simBase' = simBase, 'ssb0_wt' = ssb0_wt))
     })
   
+
+# Run Model ---------------------------------------------------------------
+
   # Run optimization to find F that matches target depletion
   runModel <- reactive({
     
@@ -125,6 +148,9 @@ shinyServer(function(input, output) {
                               f = OUT$minimum,
                               ages = c(7:max_age),
                               sim_length = input$sim_length,
+                              selectivity = input$mesh_size,
+                              recruit_var = recruit_react(),
+                              sims = input$sim_number,
                               length_at_age = age_params[['length_age']],
                               weight_at_age = age_params[['weight_age']],
                               maturity = age_params[['maturity']])
@@ -136,6 +162,9 @@ shinyServer(function(input, output) {
                            f = input$f_sim,
                            ages = c(7:max_age),
                            sim_length = input$sim_length,
+                           sims = input$sim_number,
+                           selectivity = input$mesh_size,
+                           recruit_var = recruit_react(),
                            length_at_age = age_params[['length_age']],
                            weight_at_age = age_params[['weight_age']],
                            maturity = age_params[['maturity']],
@@ -143,6 +172,9 @@ shinyServer(function(input, output) {
     
     return(list('optF' = OUT$minimum, 'currentF' = simA, 'simF' = simB, 'ssb_wt' = ssb0_wt))
   })
+  
+
+# Base Model Plots --------------------------------------------------------
   
   # Base model plots
   baseModelPlots <- reactive({
@@ -156,7 +188,10 @@ shinyServer(function(input, output) {
     
     return(list('ssb' = base_plot_ssb, 'catch' = base_plot_catch))
   })
-  
+
+
+# Simulation Plots --------------------------------------------------------
+
   # Simulation model plots
   simModelPlots <- reactive({
     
@@ -204,6 +239,9 @@ shinyServer(function(input, output) {
                 'catchPlot' = catch_plot, 'bioPlot' = bio_plot))
   })
   
+
+# Simulation Tables -------------------------------------------------------
+
   simModelTables <- reactive({
     
     # Run baseline
@@ -259,6 +297,9 @@ shinyServer(function(input, output) {
     return(list('catch_table' = catch_df, 'bio_table' = bio_df))
   })
   
+
+# Render UI Objects -------------------------------------------------------
+
   # Render plots
   output$base_run_ssb <- renderPlot({ baseModelPlots()[['ssb']] })
   output$base_run_catch <- renderPlot({ baseModelPlots()[['catch']] })
@@ -272,9 +313,5 @@ shinyServer(function(input, output) {
   # Render tables
   output$sim_catch_table <- renderTable({ simModelTables()[['catch_table']]})
   output$sim_bio_table <- renderTable({ simModelTables()[['bio_table']]})
-  
-  # Depletion value !! just for testing
-  output$optF <- renderText(runModel()[['optF']])
-
 
 })
