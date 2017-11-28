@@ -108,11 +108,11 @@ dashboardPage(
                 ), 
                 
                 column(width = 3,
-                       valueBox(10, '% Change in Catch', width = NA, icon = icon('ship'))
+                       valueBoxOutput('catch_status_box', width = NA)
                 ),
                 
                 column(width = 3, 
-                       valueBox(10, '% Change in Biomass', width = NA, icon = icon('globe'))
+                       valueBoxOutput('bio_status_box', width = NA)
                 )
               ),
               

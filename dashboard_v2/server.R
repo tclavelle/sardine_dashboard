@@ -6,14 +6,31 @@
 
 shinyServer(function(input, output) {
   
-  # Basic Fishery Demography ------------------------------------------------
+  # Functions ------------------------------------------------
 
   source('../functions/sardine_sim_v3.R')
   source('../functions/sardine_app_functions.R')
   source('../functions/sim_plot.R')
   source('../functions/depletion_v3.R')
   source('../functions/simDepletion.R')
- 
+  
+  # Catch History Plot ------------------------------------------------------
+  
+  output$catch_hist <- renderDygraph({
+    dygraph(p1) %>%
+      dyOptions(fillGraph = TRUE) %>%
+      # dySeries(label = "Commercial") %>%
+      dySeries(label = "Municipal") %>%
+      dySeries(label = "Total") %>%
+      dyHighlight(highlightSeriesOpts = list(strokeWidth = 3)) %>%
+      dyRangeSelector(dateWindow = c("2002-04-01", "2017-04-01")) %>%
+      dyRibbon(season, palette = c("#ffe6e6","#efefef")) %>%
+      dyAxis('y', label = 'Catch (metric tons)') %>%
+      dyAxis('x', label = 'Year') 
+  })
+  
+# Baseline Population -----------------------------------------------------
+
   # Generate length and weight at age and maturity at age vectors given life history parameter settings
   length_weight <- reactive({ 
     # Length at age
@@ -27,15 +44,13 @@ shinyServer(function(input, output) {
                  rep(1, times = length(l_at_a)-length(mat_ramp) + 1)) # all large fish are mature 
     
     return(list('length_age' = l_at_a, 'weight_age' = w_at_a, 'maturity' = mat_out))
-    })
+  })
   
-# Baseline Population -----------------------------------------------------
-
   # Initial population settings given intital recruitment settings
   baseline <- reactive({
     # calculate ssb0 from resulting r0
     virgin <- input$r0 * exp(- (1 / 12) * input$mortality * c(0:(max_age - recruit_age)))
-    # browser()
+    
     # Set recruitment ages. Include max age of analysis
     recruit_ages <- unique(c(seq(from = input$recruit_month, to = max_age, by = 12)))
     
@@ -107,11 +122,9 @@ shinyServer(function(input, output) {
     
     # Take max of spawning stock biomass from base simulation
     ssb0_wt <- max(rowSums(sim_m_out))
-    ssb0 <- sim_m_out[which(rowSums(sim_m_out)==ssb0_wt),] / age_params[['weight_age']]
   
     return(list('simBase' = simBase, 'ssb0_wt' = ssb0_wt))
     })
-  
 
 # Run Model ---------------------------------------------------------------
 
@@ -125,7 +138,7 @@ shinyServer(function(input, output) {
     baseline <- baseModel()
     
     # Pull out ssb
-    ssb0_wt <- baseline[['ssb0_wt']]
+    ssb0_base <- baseline[['ssb0_wt']]
     
     # Run optimization
     OUT <- optimize(depletion_v3,
@@ -133,19 +146,32 @@ shinyServer(function(input, output) {
                     upper = 2,
                     target_depletion = input$depletion,
                     r0 = input$r0, 
-                    ssb0_wt = ssb0_wt, 
+                    ssb0_wt = ssb0_base, 
                     initial_pop = baseline()[['initial_pop']], 
                     sim_length = input$sim_length,
                     length_at_age = age_params[['length_age']],
                     weight_at_age = age_params[['weight_age']],
                     maturity = age_params[['maturity']],
-                    recruit_months = baseline[['recruit_months']])
+                    recruit_months = baseline()[['recruit_months']])
+    
+    # Run simulation with optimized F to generate initial population for forward simulations
+    virgin <- input$r0 * exp(- (1 / 12) * (input$mortality + OUT$minimum) * c(0:(max_age - recruit_age)))
+    
+    # Set recruitment ages. Include max age of analysis
+    recruit_ages <- unique(c(seq(from = input$recruit_month, to = max_age, by = 12)))
+    
+    # only include numbers for recruitment ages (cohorts)
+    virgin[!(c(1:(max_age - recruit_age + 1)) %in% recruit_ages)] <- 0
+    
+    # set initial pop to resulting
+    initial_pop <- virgin
     
     # Run simulation with optimized F to match depletion setting
-    simA <- sardine_sim_v3(initial_pop = baseline()[['initial_pop']],
+    simA <- sardine_sim_v3(initial_pop = initial_pop,
                               recruit_type = 'bev_holt',
                               r0 = input$r0,
                               f = OUT$minimum,
+                           ssb0 = ssb0_base,
                               ages = c(7:max_age),
                               sim_length = input$sim_length,
                               selectivity = input$mesh_size,
@@ -156,10 +182,11 @@ shinyServer(function(input, output) {
                               maturity = age_params[['maturity']])
     
     # Run simulation with closed season
-    simB <- sardine_sim_v3(initial_pop = baseline()[['initial_pop']],
+    simB <- sardine_sim_v3(initial_pop = initial_pop,
                            recruit_type = 'bev_holt',
                            r0 = input$r0,
-                           f = input$f_sim,
+                           f = OUT$minimum,
+                           ssb0 = ssb0_base,
                            ages = c(7:max_age),
                            sim_length = input$sim_length,
                            sims = input$sim_number,
@@ -170,7 +197,7 @@ shinyServer(function(input, output) {
                            maturity = age_params[['maturity']],
                            closed = closed_season())
     
-    return(list('optF' = OUT$minimum, 'currentF' = simA, 'simF' = simB, 'ssb_wt' = ssb0_wt))
+    return(list('optF' = OUT$minimum, 'currentF' = simA, 'simF' = simB, 'ssb_wt' = ssb0_base))
   })
   
 
@@ -195,8 +222,6 @@ shinyServer(function(input, output) {
   # Simulation model plots
   simModelPlots <- reactive({
     
-    # Run baseline
-    base <- baseModel()
     # Run model
     sims <- runModel()
     # Get length, weight, and maturity at age vectors
@@ -207,14 +232,14 @@ shinyServer(function(input, output) {
     simF <- sims[['simF']]
     
     # Calculate depletion timeseries
-    base_dp <- simDepletion(mature_df = currentF[['m_out']], sim_name = 'current F', 
+    base_dp <- simDepletion(mature_df = currentF[['m_out']], sim_name = 'Status Quo', 
                             weight_age = age_params[['weight_age']], 
-                            sim_length = input$sim_length, ssb0 = sims[['ssb_wt']], 
+                            sim_length = input$sim_length, ssb0_wt = sims[['ssb_wt']], 
                             recruit_months = baseline()[['recruit_months']])
     
-    forward_dp <- simDepletion(mature_df = simF[['m_out']], sim_name = 'selected F', 
+    forward_dp <- simDepletion(mature_df = simF[['m_out']], sim_name = 'Intervention', 
                                weight_age = age_params[['weight_age']], 
-                               sim_length = input$sim_length, ssb0 = sims[['ssb_wt']], 
+                               sim_length = input$sim_length, ssb0_wt = sims[['ssb_wt']], 
                                recruit_months = baseline()[['recruit_months']])
     
     # Combine dataframes
@@ -224,19 +249,23 @@ shinyServer(function(input, output) {
     dep_plot_out <- depletion_plot(sim_dp)
     
     # Create catch simulation plot
-    catch_plot <- simCompare(simA = currentF[['c_out']], 
-                             simB = simF[['c_out']],
+    catch_plot <- simCompare(simA = currentF[['c_list']], 
+                             simB = simF[['c_list']],
                              sim_length = input$sim_length,
-                             metric = 'Catch')
+                             metric = 'Catch',
+                             sample_size = input$sim_number)
     
     # Create biomass simulation plot
-    bio_plot <- simCompare(simA = currentF[['b_out']], 
-                             simB = simF[['b_out']],
+    bio_plot <- simCompare(simA = currentF[['m_list']], 
+                             simB = simF[['m_list']],
                              sim_length = input$sim_length,
-                             metric = 'Biomass')
+                             metric = 'Biomass',
+                           sample_size = input$sim_number)
     
-    return(list('depletion_df' = sim_dp, 'depletionPlot' = dep_plot_out,
-                'catchPlot' = catch_plot, 'bioPlot' = bio_plot))
+    return(list('depletion_df' = sim_dp, 
+                'depletionPlot' = dep_plot_out,
+                'catchPlot' = catch_plot[['compare_plot']], 
+                'bioPlot' = bio_plot[['compare_plot']]))
   })
   
 
@@ -280,21 +309,35 @@ shinyServer(function(input, output) {
     bio_df <- goLong(df1 = currentF[['b_out']], df2 = simF[['b_out']], metric = 'Biomass')
     
     # Summarize by year
-    catch_df <- catch_df %>%
+    catch_table <- catch_df %>%
       group_by(year, metric) %>%
       summarize(sq         = sum(sq, na.rm = T),
                 closed     = sum(closed, na.tm = T),
                 difference = round(100 * (closed - sq) / sq)) %>%
       select(year, metric, difference)
     
-    bio_df <- bio_df %>%
+    bio_table <- bio_df %>%
       group_by(year, metric) %>%
       summarize(sq         = sum(sq, na.rm = T),
                 closed     = sum(closed, na.tm = T),
                 difference = round(100 * (closed - sq) / sq)) %>%
       select(year, metric, difference)
     
-    return(list('catch_table' = catch_df, 'bio_table' = bio_df))
+    # Summarize over full timeseries for status boxes
+    catch_status_box <- catch_df %>%
+      summarize(sq         = sum(sq, na.rm = T),
+                closed     = sum(closed, na.tm = T),
+                difference = round(100 * (closed - sq) / sq)) %>% .$difference
+    
+    bio_status_box <- bio_df %>%
+      summarize(sq         = sum(sq, na.rm = T),
+                closed     = sum(closed, na.tm = T),
+                difference = round(100 * (closed - sq) / sq)) %>% .$difference
+    
+    return(list('catch_table' = catch_table, 
+                'bio_table' = bio_table,
+                'catch_box' = catch_status_box,
+                'bio_box'   = bio_status_box))
   })
   
 
@@ -313,5 +356,18 @@ shinyServer(function(input, output) {
   # Render tables
   output$sim_catch_table <- renderTable({ simModelTables()[['catch_table']]})
   output$sim_bio_table <- renderTable({ simModelTables()[['bio_table']]})
+  
+  # Render status boxes
+  output$catch_status_box <- renderValueBox({
+    valueBox(
+      simModelTables()[['catch_box']],
+      '% Change in catch', icon = icon('ship'), color = 'green')
+      })
+  
+  output$bio_status_box <- renderValueBox({
+    valueBox(
+      simModelTables()[['bio_box']],
+      '% Change in biomass', icon = icon('globe'), color = 'green')
+  })
 
 })

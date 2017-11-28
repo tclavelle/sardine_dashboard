@@ -44,7 +44,7 @@ sardine_sim_v3 <- function(initial_pop,
     if(is.null(dim(recruit_var))==FALSE) {
       # Extract recruitment variability for simulation
       recruit_vary <- recruit_var[s,]
-    } else recruit_vary <- recruit_var
+    } else recruit_vary <- rep(recruit_var, times = sim_length)
 
     
 ## Build data frames
@@ -118,7 +118,22 @@ c_list[[s]] <- c_out
 m_list[[s]] <- m_out
 
 } # close simulation loop
-# browser()
 
-return(list('n_out' = n_out, 'b_out' = b_out, 'm_out' = m_out, 'c_out' = c_out))
+# helper function to process matrices
+goLong <- function(df) {
+  df_out <- df %>%
+    tbl_df() %>%
+    mutate(month     = c(1:nrow(.)),
+           year      = ceiling(rep_len(x = c(1:sim_length / 12), length.out = sim_length + 1)),
+           total     = rowSums(.)) %>%
+    select(month, year, total)
+}
+
+# Convert matrices to long format
+c_list <- lapply(c_list, function(x) goLong(x))
+m_list <- lapply(m_list, function(x) goLong(x))
+  
+
+return(list('n_out' = n_out, 'b_out' = b_out, 'm_out' = m_out, 'c_out' = c_out,
+            'c_list' = c_list, 'm_list' = m_list))
 }

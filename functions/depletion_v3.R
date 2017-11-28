@@ -22,7 +22,7 @@ depletion_v3 <- function(par_start, target_depletion, r0 = 1e6, ssb0_wt, initial
   
   # Calculate depletion of simulation
   sim_dp <- simDepletion(mature_df = simForward[['m_out']], sim_name = 'current F', weight_age = weight_at_age, 
-                             sim_length = sim_length, ssb0 = ssb0_wt, recruit_months = recruit_months)
+                             sim_length = sim_length, ssb0_wt = ssb0_wt, recruit_months = recruit_months)
   
   # calculate sum of squares value to minimize
   out <- sim_dp %>%

@@ -88,7 +88,7 @@ sardine_optim_v2 <- function(start_pop,
     b_out[i+1,]	<-	weight_at_age * n_out[i+1,] / 1e6 # divide by 1e6 to convert grams to metric tons
     
     # Mature individuals 
-    m_out[i+1,] <- n_out[i+1,] * maturity #* sex_ratio
+    m_out[i+1,] <- n_out[i+1,] * maturity 
     
   } # close year loop
   
@@ -98,7 +98,7 @@ sardine_optim_v2 <- function(start_pop,
   b_final <- sum(m_out[recruit_months[length(recruit_months)],] * weight_at_age, na.rm = T)
   
   # Calculate final depletion
-  final_depletion <- b_final / ssb0 
+  final_depletion <- 1 - b_final / ssb0 
   
   return(list(abundance = n_out, 
               biomass = b_out, 

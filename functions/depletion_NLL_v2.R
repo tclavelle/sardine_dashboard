@@ -4,7 +4,7 @@
 ## Date: 2017-10-16
 #######################################################################################
 
-depletion_NLL_v2	<- function(par_start, depletion, catch, length_at_age, weight_at_age, maturity) {
+depletion_NLL_v2	<- function(par_start, depletion, catch, length_at_age, weight_at_age, maturity, mort) {
   
   # Simulate population from r0 out to equilibrium
   base_sim <- sardine_sim_v2(start_pop = par_start[1],
@@ -17,7 +17,7 @@ depletion_NLL_v2	<- function(par_start, depletion, catch, length_at_age, weight_
                              recruit_type = 'constant')
   
   # Generate virgin biomass from a given R0 (making sure to set ages in between recruitment events to 0)
-  virgin <- par_start[1] * exp(- (1 / 12) * c(0:41))
+  virgin <- par_start[1] * exp(- (1 / 12) * mort * c(0:41))
   
   # Calculate number mature and multiply times weight at age to get SSB0
   ssb0 <- virgin * maturity * weight_at_age
@@ -43,7 +43,7 @@ depletion_NLL_v2	<- function(par_start, depletion, catch, length_at_age, weight_
   
   out_depletion <- fishing_sim$final_depletion
   
-  if(out_depletion < 0) out_depletion <- 999
+  # if(out_depletion < 0) out_depletion <- 999
   
   return((out_depletion - depletion)^2)
 }

@@ -55,10 +55,11 @@ shinyServer(function(input, output) {
       catch = catch_history,
       length_at_age = length_at_age,
       weight_at_age = weight_at_age,
-      maturity = maturity)
+      maturity = maturity,
+      mort = input$mortality)
     
     # calculate ssb0 from resulting r0
-    virgin <- OUT$minimum[1] * exp(- (1 / 12) * c(0:41))
+    virgin <- OUT$minimum[1] * exp(- (1 / 12) * input$mortality * c(0:41))
     
     # Calculate number mature and multiply times weight at age to get SSB0
     ssb0 <- virgin * maturity * weight_at_age
@@ -327,14 +328,14 @@ output$biomass_table <- renderTable({
       mutate(month = c(1:nrow(.))) %>%
       gather(key = 'age', value = 'number', 1:c(ncol(.)-1)) %>%
       group_by(month) %>%
-      summarize(`Catch` = sum(number, na.rm = T) / 1000)
+      summarize(`Catch` = sum(number, na.rm = T))
 
     sim_out_summary_no_closed <- run_sim_no_closed()[['c_out']] %>%
       tbl_df() %>%
       mutate(month = c(1:nrow(.))) %>%
       gather(key = 'age', value = 'number', 1:c(ncol(.)-1)) %>%
       group_by(month) %>%
-      summarize(`Catch (no closed season)` = sum(number, na.rm = T) / 1000)
+      summarize(`Catch (no closed season)` = sum(number, na.rm = T))
 
     sim_out_summary <- sim_out_summary %>%
       left_join(sim_out_summary_no_closed)
@@ -346,7 +347,7 @@ output$biomass_table <- renderTable({
     # Base plot
     dy_catch <- dygraph(sim_out_summary,
                         group = 'projections') %>%
-      dyAxis('y', label = 'Catch (1000s MT)') %>%
+      dyAxis('y', label = 'Catch (MT)') %>%
       dyAxis('x', label = 'Month') %>%
       dyLegend(width = 400) %>%
       dyOptions(colors = RColorBrewer::brewer.pal(2, "Dark2"))
