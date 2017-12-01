@@ -1,0 +1,16 @@
+---
+output: html_document
+---
+
+The first step of the analysis is to determine several important biological and stock-level parameters for *S. lemuru*, including natural mortality ($M$) and selectivity. 
+
+### Natural Mortality
+Natural mortality ($M$) for *S. lemuru* is estimated from the $L_{\infty}$ and von Bertalanffy $K$ parameters using the formula from a recent meta-analysis of 201 fish species (Then *et al.* 2015). The resulting $M$ estimate for *S. lemuru* in NZP is 1.786. This natural mortality rate is considerable but in accordance with $M$ estimates for *S. lemuru* in Indonesia, where previous studies estimated a range of $M$ values from 1.00-2.63 (Setyohadi *et al.* 2010).
+
+### Selectivity
+Selectivity for the Philippine *S. lemuru* drift gillnet fishery come from Setyohadi *et al.* (2013), who estimated the selectivity of drift gillnets to *S. lemuru* in Indonesia. This study evaluated two gillnet mesh sizes, 2.54 cm and 3.175 cm, which are the same sizes used by the *S. lemuru* fishery in the Philippines. Setyohadi *et al.* (2013) found the gear selection factor ($S$) of the gillnet to the catch of *S. lemuru* to be 5.89, and the optimum length ($l_{opt}$) of *S. lemuru* to the 2.54 cm and 3.175 cm gillnets to be 14.96 cm and 18.7 cm, respectively. The standard deviation of both selection curves was 1.747 cm. Given the two $l_{opt}$ values $l_{opt,a}, l_{opt,b}$ and the shared standard deviation ($sd$), the probability of capture ($p$) at a given length ($l$) was calculated for each mesh size as follows:
+
+$$p_i = exp(-\frac{(l - l_i)^2}{2sd^2})$$
+
+$$p_b = exp(-\frac{(l - l_b)^2}{2sd^2})$$
+

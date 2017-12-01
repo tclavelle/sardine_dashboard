@@ -1,0 +1,10 @@
+---
+output: html_document
+---
+
+Two policy simulations are used to evaluate the potential effectiveness of managing the Bali sardine (*S. lemuru*) fishery with a closed season:
+
+1. **Status Quo** - The fishery continues operating at the current fishing mortality rate, remaining in equilibrium
+2. **Closed Season** - Fishing mortality is eliminated for the duration of a closed season specified by the user
+
+Results are presented in terms of the percent difference in total catch and spawning stock biomass between the two policies.

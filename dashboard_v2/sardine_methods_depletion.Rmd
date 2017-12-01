@@ -1,0 +1,9 @@
+---
+output: html_document
+---
+
+### Current Depletion
+The *S. lemuru* fishery in the Philippines is data-poor and no reliable estimates of stock status currently exist, nor does sufficient publicly available data to conduct such an analysis. As a result, this model operates by first requiring the user to specify an educated guess at the current level of depletion ($1 - \frac{B}{K}$). This assumption allows estimation of the remaining parameters required to simulate the *S. lemuru* fishery and provides flexibility to the tool by allowing users to explore the implications of management decisions across a range of potential depletion levels. By default, current depletion is initially set to 0.5.
+
+### Fishing Mortality
+Fishing mortality for *S. lemuru* was initially estimated using the mean length method described in Ault *et al.* (2005), which requires the minimum, maximum, and average length reported in the catch, together with estimates of the Von Bertalanffy growth parameter, $K$, natural mortality, $M$, and first length at full selectivity ($l_c$). However, with parameters $l_c = 14.75$, $L\infty = 22.1$, $M = 1.786$, and $\bar{l}=15.17$, the resulting estimates of total mortality ($Z = 21.35$) and fishing mortality ($F = 19.57$) are excessively high and unreliable. Fishing mortality was therefore set at the level that resulted in the user-defined depletion in equilibrium.

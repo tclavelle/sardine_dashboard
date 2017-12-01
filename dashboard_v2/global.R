@@ -20,6 +20,12 @@ library(knitr)
 library(R.utils)
 library(rsoi)
 
+# Functions ------------------------------------------------
+
+source('functions/sardine_sim_v3.R')
+source('functions/sim_plot.R')
+source('functions/depletion_v3.R')
+source('functions/simDepletion.R')
 
 # Data --------------------------------------------------------------------
 

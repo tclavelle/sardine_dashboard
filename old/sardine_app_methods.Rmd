@@ -75,9 +75,6 @@ $$ L_a = 22.1 (1-e^{\frac{1}{12}(-1.29(a + 0.08))})  $$
 
 ### Natural Mortality
 ```{r, echo=FALSE}
-# estimation of M
-Ms <- M_empirical(Linf = Linf, K_l = vbK, method = "Then_growth")
-
 # M estimates from previous studies
 M_ests <- data_frame(Z = c(4.48,6.33),
                      M = c(1,2.29),

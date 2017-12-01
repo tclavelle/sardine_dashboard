@@ -70,7 +70,14 @@ dashboardPage(
                     # Recruitment variability
                     selectInput('recruit_vary', 'Set degree of recruitment variability:', 
                                 choices = c('Low' = 0.1, 'Medium' = 0.25, 'High' = 0.5),
-                                selected = 1),
+                                selected = 1)#,
+                    
+                    # Fishing mortality for simulation
+                    # sliderInput('f_sim', 'Set fishing mortality (F) for simulation:', min = 0, max = 4, step = 0.25, value = 1.75)
+                ),
+                
+                box(title = 'Model Settings', solidHeader = TRUE, status = 'info',
+                    width = 4,
                     
                     # Length of simulation
                     sliderInput('sim_length', label = 'Length of simulation (months):',
@@ -78,12 +85,9 @@ dashboardPage(
                     
                     # Number of simulations
                     sliderInput('sim_number', label = 'Number of simulations to run:',
-                                min = 1, max = 1000, value = 100),
-                    
-                    # Fishing mortality for simulation
-                    sliderInput('f_sim', 'Set fishing mortality (F) for simulation:', min = 0, max = 4, step = 0.25, value = 1.75)
-                )
-              ) 
+                                min = 1, max = 100, value = 25)
+              )
+              )       
       ),
       
       # Simulation Model
@@ -140,7 +144,7 @@ dashboardPage(
                        tabPanel("Projections",
                                 plotOutput('sim_depletion', height = '250px')), 
                        tabPanel("Results",
-                                textOutput('sim_depletion_table'))
+                                tableOutput('depletion_table'))
                 )
               )
       ),
@@ -148,16 +152,31 @@ dashboardPage(
       # Methods
       tabItem(tabName = "methods",
               fluidRow(
-                box(title = 'Methods', solidHeader = TRUE, status = 'primary',
+                box(title = 'Methods Overview', solidHeader = TRUE, status = 'primary',
                     width = 12,
                     includeMarkdown(path = 'sardine_methods_shiny.Rmd'))
-              ), 
+              ),
               fluidRow(
-                box(title = 'Download', solidHeader = TRUE, status = 'primary',
-                    width = 6,
-                    # Download reports column
-                    downloadButton("methods", "Download Complete Methods"))
-              ))
+                box(title = 'Biological and Fishery Parameters', solidHeader = TRUE, status = 'primary',
+                    width = 12, collapsible = TRUE, collapsed = TRUE,
+                    withMathJax(includeMarkdown(path = 'sardine_methods_params.Rmd')))
+              ),
+              fluidRow(
+                box(title = 'Biological Model', solidHeader = TRUE, status = 'primary',
+                    width = 12, collapsible = TRUE, collapsed = TRUE,
+                    withMathJax(includeMarkdown(path = 'sardine_methods_biomodel.Rmd')))
+              ),
+              fluidRow(
+                box(title = 'Current Depletion and Fishing Mortality', solidHeader = TRUE, status = 'primary',
+                    width = 12, collapsible = TRUE, collapsed = TRUE,
+                    withMathJax(includeMarkdown(path = 'sardine_methods_depletion.Rmd')))
+              ),
+              fluidRow(
+                box(title = 'Policy Simulation', solidHeader = TRUE, status = 'primary',
+                    width = 12, collapsible = TRUE, collapsed = TRUE,
+                    withMathJax(includeMarkdown(path = 'sardine_methods_policies.Rmd')))
+              )
+              )
     ) 
   )
 )

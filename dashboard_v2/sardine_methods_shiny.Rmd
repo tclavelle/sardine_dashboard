@@ -4,8 +4,7 @@ output: html_document
 
 The simulation tool provided in this application is an age-structured bioeconomic model of the Bali sardine fishery in the Philippines. The Bali sardine, *S. lemuru*, is a small pelagic species of forage fish, which are notoriously difficult to model due to the heavy influence of environmental factors. Additionally, the *S. lemuru* fishery is data-poor, further complicating assessment and modeling. As a result, this simulation tool relies on numerous important assumptions that, where appropriate, can be modified by the user. These assumptions, and the methods used to represent the response of the *S. lemuru* population and fishery, are outlined below and include the following main components:
 
-1. **Estimate Biological & Fishery Parameters** - Estimate key biological and fishery parameters (natural mortality, growth, selectivity) from literature and available data
-2. **Set Final Depletion** - User specifies the current biological status of the sardine fishery
-3. **Construct Biological Model** - Build an age-structured biological model to represent the *S. lemuru* fishery
-4. **Estimate Recruitment & Stock-Recruit Relationship** - Initial recruitment, a Beverton-Holt stock-recruit relationship, and a parameter of environmental variability are then estimated such that they best explain the catch history and final depletion level specified in step 1
-5. **Project Population** - The population is projected forward from the specified final depletion level using the previously estimated stock-recruit relationship and additional fishery charactersitics (mesh size, fishing mortality rate, length of closed season, etc.) specified by the user
+1. **Biological & Fishery Parameters** - Determine key biological and fishery parameters (natural mortality, growth, selectivity) from literature and available data
+2. **Biological Model** - Build an age-structured biological model to represent the *S. lemuru* fishery
+3. **Set Current Depletion & Estimate Fishing Mortality** - The user sets the current depletion level of the fishery and the fishing mortality ($M$) required to achieve the assumed current depletion is estimated via simulation 
+4. **Policy Simulation** - The population is projected forward from the specified current depletion level under two different policies - with and without a closed season. Results are then presented in terms of the percent changes in catch and biomass of the closed season policy relative to the status quo

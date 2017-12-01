@@ -1,0 +1,35 @@
+---
+output: html_document
+---
+
+The *S. lemuru* fishery is modeled using a monthly age-structured population model. 
+
+### Individual Growth
+Length-at-age is modeled according to the Von Bertalanffy growth equation: 
+
+$$ l_i = L_{\infty} (1-e^{\frac{1}{12}(-K(i + t_0))})  $$
+The model initially uses the Von Bertalanffy parameters $K = 1.29$, $L_{\infty} = 22.1 cm$, and $t_0 = -0.08$ according to Setyohadi *et al.* (2010). Weight-at-age (in grams) is subsequently modeled according to the general allometric length-weight equation:
+
+$$ w_i =  \alpha l_i^\beta$$
+with initial parameter values of $\alpha = 0.0078$ and $\beta = 3.165$. 
+
+### Population Growth
+Abundance, $n$, at age, $i$, in each month, $t$, is a function of the abundance in the previous month and the natural mortality $m$ and fishing mortality $f$ rates:
+
+$$ n_{i,t+1} = n_{i-1,t}e^{-(\frac{1}{12}(m+f))} $$
+Total abundance in each month, $N_t$, is the sum of abundance in every age class between the age at recruitment (7 months) and max age, which is asssumed to be 38 months based on the age at which *S. lemuru* approaches $L\infty$.
+
+$$ N_t = \sum_{i = 7}^{38} n_{i,t} $$
+Total biomass in metric tons is calculated as the sum of abundance-at-age times weight-at-age divided by grams per metric ton:
+
+$$ B_t = \sum_{i=7}^{38} \frac{n_{i,t}w_i}{1,000,000} $$
+
+The average size-at-first maturity for *S. lemuru* in the NZP is 12.5 cm, which corresponds to an age of eight months. Because *S. lemuru* recruit to the fishery at seven months, all fish above age seven are assumed to be mature, with 50% of age seven fish assumed to be mature.
+
+*S. lemuru* recruit to the fishery at the age of seven months according to the following stock-recruitment relationship:
+
+$$ R_t = \frac{0.8 R_0 h SSB_t}{0.2 SSB_0 (1 - h) + (h - 0.2) SSB_{t-1}} $$
+
+where $R_t$ is the number of recruits in month $t$, $R_0$ is initial recruitment, $h$ is the steepness parameter (assumed to be 0.8), $SSB_t$ is the spawning stock biomass in month $t$, and $SSB_0$ is the virgin spawning stock biomass.
+
+

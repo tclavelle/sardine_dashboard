@@ -30,7 +30,7 @@ depletion_plot <- function(depletion_df) {
   
   dep_plot_out <- depletion_df %>%
     ggplot(aes(x = year, y = depletion, color = scenario)) +
-    geom_line() +
+    geom_smooth() +
     scale_color_brewer(type = 'qual', palette = 'Dark2') +
     labs(x = 'Time (year)',
          y = 'Depletion') +
@@ -52,15 +52,33 @@ simCompare <- function(simA, simB, sim_length, metric, sample_size) {
   
   # Bind data frames
   compare_df <- left_join(simA, simB) %>%
-    mutate(difference = 100 * (intervention - statusQuo) / statusQuo) %>%
+    mutate(difference = 100 * (intervention - statusQuo) / statusQuo) 
+  
+  # Calculate comparisons in every month
+  compare_plot_df <- compare_df %>%
     group_by(year, month) %>%
     summarize(mean_difference = mean(difference, na.rm = T),
-              sd              = sd(difference),
+              sd              = sd(difference, na.rm = T),
               upper           = mean_difference + qnorm(0.975) * sd / sqrt(sample_size),
               lower           = mean_difference - qnorm(0.975) * sd / sqrt(sample_size))
   
+  # Comparison data for result table
+  compare_tbl_df <- compare_df %>%
+    group_by(year) %>%
+    summarize(mean_difference = mean(difference, na.rm = T),
+              sd              = sd(difference, na.rm = T),
+              upper           = mean_difference + qnorm(0.975) * sd / sqrt(sample_size),
+              lower           = mean_difference - qnorm(0.975) * sd / sqrt(sample_size))
+  
+  # Comparison value for value box
+  compare_value <- compare_df %>%
+    summarize(mean_difference = mean(difference, na.rm = T),
+              sd              = sd(difference, na.rm = T),
+              upper           = mean_difference + qnorm(0.975) * sd / sqrt(sample_size),
+              lower           = mean_difference - qnorm(0.975) * sd / sqrt(sample_size)) %>% .$mean_difference
+  
   # Plot
-  compare_plot <- compare_df %>%
+  compare_plot <- compare_plot_df %>%
     ggplot(aes(x = month, y = mean_difference)) +
     geom_line() +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = 'blue', alpha = 0.5) +
@@ -71,6 +89,6 @@ simCompare <- function(simA, simB, sim_length, metric, sample_size) {
          title = paste0(metric, ' relative to status quo')) +
     theme_bw()
   
-  return(list('compare_plot' = compare_plot, 'compare_df' = compare_df))
+  return(list('compare_plot' = compare_plot, 'compare_df' = compare_tbl_df, 'compare_value_box' = compare_value))
 }
 
